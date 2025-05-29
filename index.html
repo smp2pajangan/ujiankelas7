@@ -548,14 +548,6 @@
             box-sizing: border-box;
         }
 
-        #closeSidebarButton #closeSidebarText {
-            writing-mode: vertical-lr; /* Teks vertikal */
-            text-orientation: mixed;
-            transform: rotate(180deg); /* Putar untuk keterbacaan */
-            white-space: nowrap;
-            padding: 10px 5px; /* Padding untuk teks */
-        }
-
         #closeSidebarButton:hover {
             background-color: #c82333; /* Darker red on hover */
         }
@@ -665,7 +657,7 @@
         }
 
         /* --- Answer Selection Modal --- */
-        #answerSelectionModal {
+        .custom-modal { /* Reusing .custom-modal for answer selection */
             display: none;
             position: fixed;
             top: 0; left: 0;
@@ -673,17 +665,30 @@
             background: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 1000; /* Ensure it's above other exam elements */
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
         }
 
-        #answerSelectionModal.show {
+        .custom-modal.show {
             display: flex;
             opacity: 1;
         }
 
-        #answerSelectionModal .modal-content {
+        .custom-modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 350px;
+            width: 90%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            max-height: 80vh; /* Batasi tinggi untuk konten yang dapat di-scroll */
+            overflow-y: auto; /* Aktifkan scrolling */
+            display: flex;
+            flex-direction: column;
+        }
+
+        #answerSelectionModal .modal-content { /* Specific content style for answer selection */
             background: white;
             padding: 25px;
             border-radius: 10px;
@@ -1261,7 +1266,8 @@
 
                 <div id="answerListContainer">
                     </div>
-                <p id="submissionWarningMessage" class="submission-warning-message"></p> <button id="submitAnswersButton" disabled style="background-color: #cccccc; cursor: not-allowed;">KIRIM JAWABAN</button>
+                <p id="submissionWarningMessage" class="submission-warning-message"></p>
+                <button id="submitAnswersButton" disabled style="background-color: #cccccc; cursor: not-allowed;">KIRIM JAWABAN</button>
             </div>
         </div>
 
@@ -1277,6 +1283,38 @@
                 <h2>PERINGATAN!</h2>
                 <p>Anda telah keluar dari mode layar penuh. Mohon kembali ke mode layar penuh untuk melanjutkan ujian.</p>
                 <button id="reEnterFullscreenBtn" class="exit-warning-button">Kembali ke Layar Penuh</button>
+            </div>
+        </div>
+
+        <div id="answerSelectionModal" class="custom-modal">
+            <div class="modal-content">
+                <h4 id="answerModalTitle">Pilih Jawaban Soal No. <span id="currentQuestionNumber"></span></h4>
+                <div id="answerOptions">
+                    <button data-answer="A">A</button>
+                    <button data-answer="B">B</button>
+                    <button data-answer="C">C</button>
+                    <button data-answer="D">D</button>
+                </div>
+                <button id="clearAnswerButton">Hapus Jawaban</button>
+            </div>
+        </div>
+
+        <div id="customMessageModal" class="custom-modal">
+            <div class="custom-modal-content">
+                <h4 id="customMessageModalTitle"></h4>
+                <p id="customMessageModalText"></p>
+                <button id="customMessageModalButton" onclick="window.hideCustomMessageModal()">OK</button>
+            </div>
+        </div>
+
+        <div id="customConfirmModal" class="custom-modal">
+            <div class="custom-modal-content">
+                <h4 id="customConfirmModalTitle"></h4>
+                <p id="customConfirmModalText"></p>
+                <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+                    <button id="customConfirmModalConfirmBtn" style="background-color: #28a745; width: 45%;">Ya</button>
+                    <button id="customConfirmModalCancelBtn" style="background-color: #dc3545; width: 45%;">Tidak</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1358,19 +1396,6 @@
         </div>
     </div>
 
-    <div id="answerSelectionModal">
-        <div class="modal-content">
-            <h4 id="answerModalTitle">Pilih Jawaban Soal No. <span id="currentQuestionNumber"></span></h4>
-            <div id="answerOptions">
-                <button data-answer="A">A</button>
-                <button data-answer="B">B</button>
-                <button data-answer="C">C</button>
-                <button data-answer="D">D</button>
-            </div>
-            <button id="clearAnswerButton">Hapus Jawaban</button>
-        </div>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
         import { getDatabase, ref, get, child, runTransaction, set, onValue, off } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
@@ -1448,7 +1473,7 @@
         const fullscreenExitWarningOverlay = document.getElementById('fullscreenExitWarningOverlay');
         const reEnterFullscreenBtn = document.getElementById('reEnterFullscreenBtn');
 
-        // Custom Modal Elements
+        // Custom Modal Elements (login phase)
         const classModal = document.getElementById('classModal');
         const classModalList = document.getElementById('classModalList');
         const studentModal = document.getElementById('studentModal');
@@ -1489,11 +1514,23 @@
         let studentAnswers = []; 
         let currentQuestionIndexForModal = -1; 
 
-        // Answer Selection Modal elements (moved here for scope)
+        // Answer Selection Modal elements (now inside examContainer)
         const answerSelectionModal = document.getElementById('answerSelectionModal');
         const currentQuestionNumberSpan = document.getElementById('currentQuestionNumber');
         const answerOptionsContainer = document.getElementById('answerOptions');
         const clearAnswerButton = document.getElementById('clearAnswerButton');
+
+        // Custom Message and Confirm Modals (now inside examContainer)
+        const customMessageModal = document.getElementById('customMessageModal');
+        const customMessageModalTitle = document.getElementById('customMessageModalTitle');
+        const customMessageModalText = document.getElementById('customMessageModalText');
+        const customMessageModalButton = document.getElementById('customMessageModalButton');
+
+        const customConfirmModal = document.getElementById('customConfirmModal');
+        const customConfirmModalTitle = document.getElementById('customConfirmModalTitle');
+        const customConfirmModalText = document.getElementById('customConfirmModalText');
+        const customConfirmModalConfirmBtn = document.getElementById('customConfirmModalConfirmBtn');
+        const customConfirmModalCancelBtn = document.getElementById('customConfirmModalCancelBtn');
 
         // Global variables to store exam details for `startExamProcess`
         let globalExamUrl = '';
@@ -2655,11 +2692,7 @@
          * @param {string} type - 'success', 'error', or 'warning' for styling.
          */
         window.showCustomMessageModal = function (title, messageText, type = 'info') {
-            const customMessageModal = document.getElementById('customMessageModal');
-            const customMessageModalTitle = document.getElementById('customMessageModalTitle');
-            const customMessageModalText = document.getElementById('customMessageModalText');
-            const customMessageModalButton = document.getElementById('customMessageModalButton');
-
+            // Use the customMessageModal elements that are now inside examContainer
             customMessageModalTitle.textContent = title;
             customMessageModalText.textContent = messageText;
 
@@ -2692,7 +2725,6 @@
          * Hides the custom message modal.
          */
         window.hideCustomMessageModal = function () {
-            const customMessageModal = document.getElementById('customMessageModal');
             customMessageModal.classList.remove('show');
             isAnyModalOpen = false;
         }
@@ -2705,12 +2737,7 @@
          */
         window.showCustomConfirmModal = function (title, messageText) {
             return new Promise((resolve) => {
-                const customConfirmModal = document.getElementById('customConfirmModal');
-                const customConfirmModalTitle = document.getElementById('customConfirmModalTitle');
-                const customConfirmModalText = document.getElementById('customConfirmModalText');
-                const customConfirmModalConfirmBtn = document.getElementById('customConfirmModalConfirmBtn');
-                const customConfirmModalCancelBtn = document.getElementById('customConfirmModalCancelBtn');
-
+                // Use the customConfirmModal elements that are now inside examContainer
                 customConfirmModalTitle.textContent = title;
                 customConfirmModalText.textContent = messageText;
 
@@ -3171,24 +3198,5 @@
             await restoreExamState(); // Await restoreExamState to ensure answers are loaded before UI is fully ready
         }
     </script>
-
-    <div id="customMessageModal" class="custom-modal">
-        <div class="custom-modal-content">
-            <h4 id="customMessageModalTitle"></h4>
-            <p id="customMessageModalText"></p>
-            <button id="customMessageModalButton" onclick="window.hideCustomMessageModal()">OK</button>
-        </div>
-    </div>
-
-    <div id="customConfirmModal" class="custom-modal">
-        <div class="custom-modal-content">
-            <h4 id="customConfirmModalTitle"></h4>
-            <p id="customConfirmModalText"></p>
-            <div style="display: flex; justify-content: space-around; margin-top: 20px;">
-                <button id="customConfirmModalConfirmBtn" style="background-color: #28a745; width: 45%;">Ya</button>
-                <button id="customConfirmModalCancelBtn" style="background-color: #dc3545; width: 45%;">Tidak</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>
