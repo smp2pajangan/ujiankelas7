@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0" />
     <title>Login Ujian Siswa</title>
     <style>
         body {
@@ -454,7 +454,9 @@
             margin: 0;
             padding: 0;
             display: block; /* Pastikan berperilaku sebagai elemen blok */
-            transition: filter 0.3s ease, width 0.3s ease; /* Transisi halus untuk blur/grayscale dan lebar */
+            /* UPDATED: Added transform to transition for smooth scaling */
+            transition: filter 0.3s ease, width 0.3s ease, transform 0.3s ease;
+            transform-origin: center center; /* NEW: Set transform origin for scaling */
         }
         /* Pastikan iframe terlihat bahkan ketika pointer-events nonaktif untuk overlay */
         #examIframe.blurred {
@@ -476,7 +478,7 @@
             transform: translateX(calc(100% - 70px)); /* Awalnya tersembunyi, hanya 70px terlihat */
             transition: transform 0.3s ease-in-out;
             z-index: 600; /* Di atas iframe, di bawah overlay utama */
-            border-left: 1px solid #ddd;
+            /* REMOVED: border-left: 1px solid #ddd; */
         }
 
         #answerSidebar.open {
@@ -494,7 +496,7 @@
             position: absolute; /* Posisikan relatif terhadap examContentWrapper */
             right: 0; /* Posisikan di kanan examContentWrapper */
             top: 0; /* Posisikan di bagian atas */
-            height: 30%; /* Tinggi 30% dari parent */
+            height: 20%; /* Tinggi 20% dari parent */
             width: 70px; /* Lebar baru 70px */
             display: flex; /* Default: visible */
             align-items: center;
@@ -527,7 +529,7 @@
             position: absolute;
             left: 0; /* Position on the left edge of the sidebar */
             top: 0; /* Posisikan di bagian atas */
-            height: 30%; /* Tinggi 30% dari parent */
+            height: 20%; /* Tinggi 20% dari parent */
             width: 70px; /* Lebar baru 70px */
             background-color: #dc3545; /* Red for close action */
             color: white;
@@ -546,6 +548,14 @@
             z-index: 602;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        #closeSidebarButton #closeSidebarText { /* NEW: Style for the text inside the close button */
+            writing-mode: vertical-lr; /* Vertikal */
+            text-orientation: mixed;
+            transform: rotate(180deg); /* Putar untuk keterbacaan */
+            white-space: nowrap;
+            padding: 10px 5px; /* Padding untuk teks */
         }
 
         #closeSidebarButton:hover {
@@ -1137,14 +1147,14 @@
             }
             #sidebarToggle {
                 width: 70px; /* Lebar tombol toggle lebih kecil */
-                height: 30%; /* Tinggi 30% dari parent */
+                height: 20%; /* Tinggi 20% dari parent */
             }
             #sidebarToggle #sidebarText {
                 padding: 8px 3px; /* Sesuaikan padding untuk mobile */
             }
             #closeSidebarButton {
                 width: 70px; /* Lebar tombol tutup lebih kecil */
-                height: 30%; /* Tinggi 30% dari parent */
+                height: 20%; /* Tinggi 20% dari parent */
             }
             #closeSidebarButton #closeSidebarText {
                 padding: 8px 3px; /* Sesuaikan padding untuk mobile */
@@ -1256,7 +1266,7 @@
             <iframe id="examIframe" src="" frameborder="0"></iframe>
 
             <button id="sidebarToggle">
-                <span id="sidebarText">PILIHAN JAWABAN</span>
+                <span id="sidebarText">JAWAB</span>
             </button>
 
             <div id="answerSidebar">
@@ -1538,6 +1548,13 @@
         let globalNumQuestions = 0;
         let globalExamStartTime = 0;
         let globalInitialAnswers = null; // New global variable to store initial answers
+
+
+        // NEW: Zoom variables for iframe
+        let currentZoom = 1.0;
+        const MIN_ZOOM = 0.5;
+        const MAX_ZOOM = 2.0;
+        const ZOOM_STEP = 0.1;
 
 
         // --- Utility Functions ---
@@ -3158,6 +3175,27 @@
             });
             clearAnswerButton.addEventListener('click', clearAnswer);
             submitAnswersButton.addEventListener('click', () => submitAnswers(false)); // Manual submission, so isAutoSubmit is false
+
+            // NEW: Event listener for iframe zoom (Ctrl + scroll)
+            examIframe.addEventListener('wheel', (event) => {
+                if (event.ctrlKey) {
+                    event.preventDefault(); // Mencegah zoom halaman default
+                    
+                    if (event.deltaY < 0) {
+                        // Zoom in
+                        currentZoom += ZOOM_STEP;
+                    } else {
+                        // Zoom out
+                        currentZoom -= ZOOM_STEP;
+                    }
+
+                    // Batasi level zoom
+                    currentZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom));
+
+                    // Terapkan zoom
+                    examIframe.style.transform = `scale(${currentZoom})`;
+                }
+            }, { passive: false }); // Gunakan passive: false untuk mengizinkan preventDefault
 
 
             updateDateTime();
