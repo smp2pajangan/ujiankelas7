@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login Ujian Siswa</title>
     <style>
-        /* Global Styles & Body */
         body {
-            font-family: 'Inter', Arial, sans-serif;
-            background-color: #f0f2f5; /* Light gray background for a modern feel */
+            font-family: 'Inter', Arial, sans-serif; /* Menggunakan font Inter */
+            background-color: #e0e0e0;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1),
+                        inset 0 -2px 4px rgba(255,255,255,0.7);
             margin: 0;
-            padding: 0;
+            padding: 0; /* Hapus padding body agar iframe bisa fullscreen */
             text-align: center;
             display: flex;
             justify-content: center;
@@ -21,227 +22,211 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
-            overflow: hidden; /* Prevent body scroll when overlay active */
+            overflow: hidden; /* Mencegah scroll body saat overlay aktif */
         }
 
-        /* Login Container */
         .container {
-            max-width: 420px; /* Slightly wider for better content spacing */
+            max-width: 400px;
             width: 90%;
             margin: 20px auto;
-            border: none; /* Remove border, rely on shadow */
+            border: 1px solid #ddd;
             background: white;
-            border-radius: 12px; /* More rounded corners */
-            box-shadow: 0 8px 24px rgba(0,0,0,0.1); /* Softer, larger shadow */
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             overflow: hidden;
-            flex-shrink: 0;
-            opacity: 1;
-            transition: opacity 0.5s ease-in-out;
+            flex-shrink: 0; /* Mencegah container login menyusut */
+            opacity: 1; /* Status awal untuk transisi */
+            transition: opacity 0.5s ease-in-out; /* Transisi halus */
         }
 
         .header-box {
-            background-color: #007bff; /* Primary blue */
-            padding: 25px 15px; /* More padding */
+            background-color: #0066cc;
+            padding: 20px 15px;
             color: white;
-            border-bottom: 5px solid #0056b3; /* Darker blue accent */
         }
 
         .header-box .logo {
-            width: 90px; /* Slightly larger logo */
-            margin-bottom: 10px;
+            width: 80px;
         }
 
         .title {
-            font-size: 24px; /* Larger title */
-            font-weight: 700; /* Bolder */
-            margin-top: 0;
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 10px;
             color: white;
         }
 
         .card-body {
-            padding: 30px; /* More padding */
+            padding: 20px;
         }
 
         .judul-ujian {
-            color: #007bff; /* Primary blue */
-            font-size: 26px; /* Larger and more prominent */
-            font-weight: 700;
-            margin: 15px 0 25px; /* More vertical spacing */
+            color: #0066cc; /* Warna biru seperti header */
+            font-size: 22px; /* Ukuran yang sama dengan SMPN 2 PAJANGAN */
+            font-weight: bold;
+            margin: 10px 0;
         }
 
-        /* Input Groups */
-        .token-input-group,
-        input[type="text"]:not(#displayStudentId) { /* Apply to general inputs except readonly ID */
-            padding: 12px; /* More padding for easier tapping */
-            font-size: 17px; /* Slightly larger font */
-            margin: 12px auto; /* Consistent margin */
-            border: 1px solid #dcdcdc; /* Lighter border */
-            border-radius: 8px; /* More rounded */
-            box-sizing: border-box;
-            text-align: center;
-            height: 48px; /* Taller inputs */
-            transition: all 0.3s ease; /* Smooth transition for focus/validation */
-        }
-
+        /* Container untuk input token dan ID */
         .token-input-group {
             display: flex;
-            align-items: center;
-            width: calc(100% - 0px); /* Full width within card-body padding */
-            margin: 15px auto;
-            border: 1px solid #dcdcdc;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Subtle inner shadow */
+            align-items: center; /* Pusatkan secara vertikal tanda hubung */
+            width: calc(100% - 20px); /* Sesuaikan lebar keseluruhan input */
+            margin: 10px auto;
+            border: 1px solid #ccc; /* Border gabungan */
+            border-radius: 5px; /* Sudut membulat gabungan */
+            overflow: hidden; /* Pastikan konten tidak meluap */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Transisi untuk feedback input */
         }
 
         .token-input-group input {
-            padding: 12px;
-            font-size: 17px;
-            border: none;
-            margin: 0;
-            height: 48px;
+            padding: 10px;
+            font-size: 16px;
+            border: none; /* Hapus border individu */
+            margin: 0; /* Hapus margin individu */
+            box-sizing: border-box;
+            text-align: center;
+            height: 40px; /* Pastikan tinggi konsisten */
         }
 
         #inputTokenPrefix {
-            flex-grow: 1;
-            min-width: 0;
-            border-right: 1px solid #e0e0e0; /* Lighter separator */
+            flex-grow: 1; /* Ambil sisa ruang yang tersedia */
+            min-width: 0; /* Izinkan menyusut */
+            border-right: 1px solid #ccc; /* Border pemisah */
         }
 
         .token-separator {
-            background-color: #f8f8f8; /* Very light gray */
-            padding: 12px 8px;
-            font-size: 17px;
-            color: #777;
+            background-color: #f0f0f0; /* Warna latar belakang yang sama dengan input read-only */
+            padding: 10px 5px; /* Sesuaikan padding agar sesuai tinggi input */
+            font-size: 16px;
+            color: #555;
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 48px;
+            height: 40px;
             box-sizing: border-box;
         }
 
         #displayStudentId {
-            width: 80px; /* Adjusted width */
-            min-width: 80px;
-            max-width: 80px;
-            background-color: #f0f0f0;
+            width: 70px; /* Lebar tetap untuk 3 digit + padding */
+            min-width: 70px; /* Pastikan tidak menyusut terlalu banyak */
+            max-width: 70px; /* Pastikan tidak tumbuh terlalu banyak */
+            background-color: #f0f0f0; /* Latar belakang abu-abu muda untuk read-only */
             cursor: not-allowed;
-            color: #555;
         }
 
-        /* Custom Dropdown */
+        /* Gaya umum untuk input */
+        input {
+            padding: 10px;
+            width: calc(100% - 20px);
+            font-size: 16px;
+            margin: 10px auto;
+            display: block;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            text-align: center;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Gaya dropdown kustom */
         .custom-dropdown-container {
             position: relative;
-            width: 100%; /* Full width within card-body padding */
-            margin: 15px auto;
+            width: calc(100% - 20px);
+            margin: 10px auto;
+            display: block;
         }
 
         .custom-dropdown-display {
-            padding: 12px;
+            padding: 10px;
             width: 100%;
-            font-size: 17px;
-            border: 1px solid #dcdcdc;
-            border-radius: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
             box-sizing: border-box;
+            text-align: center;
             background-color: white;
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 48px;
-            color: #888; /* Lighter placeholder color */
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            min-height: 40px; /* Pastikan tinggi konsisten */
+            color: #555; /* Warna seperti placeholder */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         .custom-dropdown-display.selected {
-            color: #333; /* Darker text when selected */
+            color: #000; /* Warna teks saat item dipilih */
         }
 
         .custom-dropdown-display.disabled {
             background-color: #f0f0f0;
             cursor: not-allowed;
-            color: #aaa;
         }
 
         .custom-dropdown-display::after {
-            content: '▼';
+            content: '▼'; /* Panah dropdown */
             position: absolute;
-            right: 18px; /* Adjusted position */
-            font-size: 0.7em;
+            right: 15px;
+            font-size: 0.8em;
             color: #888;
-            transition: transform 0.2s ease;
-        }
-        
-        .custom-dropdown-display.open::after {
-            transform: rotate(180deg); /* Rotate arrow when open */
         }
 
-        /* Input Validation Feedback */
-        .token-input-group.is-valid,
-        input.is-valid,
-        .custom-dropdown-display.is-valid {
-            border-color: #28a745;
-            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.2);
+        /* Gaya feedback validasi input */
+        .token-input-group.is-valid {
+            border-color: #28a745; /* Hijau */
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
         }
 
-        .token-input-group.is-invalid,
-        input.is-invalid,
-        .custom-dropdown-display.is-invalid {
-            border-color: #dc3545;
-            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.2);
+        .token-input-group.is-invalid {
+            border-color: #dc3545; /* Merah */
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
         }
 
-        /* Buttons */
         button {
-            padding: 14px 25px; /* More padding */
-            font-size: 18px; /* Larger font */
+            padding: 10px 20px;
+            font-size: 16px;
             width: 100%;
             background-color: #007bff;
             color: white;
             border: none;
-            border-radius: 8px; /* More rounded */
+            border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-            margin: 15px auto 10px; /* Consistent margin */
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin: 10px auto;
             display: block;
-            box-shadow: 0 4px 12px rgba(0,123,255,0.2); /* Subtle shadow */
         }
 
         button:hover {
             background-color: #0056b3;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,123,255,0.3);
         }
 
         button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transform: scale(0.98);
         }
 
+        /* Gaya khusus untuk tombol Batal */
         #btnBatal {
-            background-color: #6c757d; /* Muted gray for cancel */
-            box-shadow: 0 4px 12px rgba(108,117,125,0.2);
+            background-color: #dc3545; /* Merah */
         }
 
         #btnBatal:hover {
-            background-color: #5a6268;
-            box-shadow: 0 6px 16px rgba(108,117,125,0.3);
+            background-color: #c82333; /* Merah lebih gelap saat hover */
         }
 
         .message {
-            margin-bottom: 15px;
-            font-size: 15px;
-            min-height: 20px; /* Ensure space even when empty */
+            margin-bottom: 10px;
+            font-size: 14px;
+            min-height: 30px;
             text-align: center;
-            color: #333;
         }
 
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #007bff; /* Blue spinner */
+            border-top: 3px solid black;
             border-radius: 50%;
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             animation: spin 1s linear infinite;
             display: inline-block;
             vertical-align: middle;
@@ -254,19 +239,19 @@
         }
 
         .footer {
-            margin-top: 30px;
-            font-size: 13px;
-            color: #888;
-            padding-bottom: 15px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+            padding-bottom: 10px;
         }
 
-        /* Custom Modals (Dropdowns, Message, Confirm) */
+        /* Gaya modal untuk dropdown kustom */
         .custom-modal {
             display: none;
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6); /* Slightly darker overlay */
+            background: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -281,53 +266,40 @@
 
         .custom-modal-content {
             background: white;
-            padding: 30px; /* More padding */
-            border-radius: 12px;
-            max-width: 400px; /* Wider modal */
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 350px;
             width: 90%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); /* Larger shadow */
-            max-height: 85vh; /* Allow more height */
-            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            max-height: 80vh; /* Batasi tinggi untuk konten yang dapat di-scroll */
+            overflow-y: auto; /* Aktifkan scrolling */
             display: flex;
             flex-direction: column;
-            transform: translateY(0); /* Ensure no initial transform */
-            animation: modalPopIn 0.3s ease-out forwards;
-        }
-
-        @keyframes modalPopIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
         }
 
         .custom-modal-content h4 {
-            font-size: 1.6em; /* Larger title */
-            font-weight: 700;
-            color: #007bff;
-            margin-bottom: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #0066cc;
+            margin-bottom: 15px;
             text-align: center;
-            flex-shrink: 0;
+            flex-shrink: 0; /* Mencegah judul menyusut */
         }
 
         .custom-modal-list {
             list-style: none;
             padding: 0;
             margin: 0;
-            flex-grow: 1;
+            flex-grow: 1; /* Izinkan daftar mengambil ruang yang tersedia */
         }
 
         .custom-modal-list li {
-            padding: 15px 20px; /* More padding for touch targets */
+            padding: 12px 15px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
             text-align: left;
-            font-size: 1.15em; /* Slightly larger font */
-            transition: background-color 0.2s ease, transform 0.1s ease;
+            font-size: 1.1em;
+            transition: background-color 0.2s ease;
         }
 
         .custom-modal-list li:last-child {
@@ -335,655 +307,739 @@
         }
 
         .custom-modal-list li:hover {
-            background-color: #f5f5f5;
-            transform: translateX(5px); /* Subtle hover effect */
+            background-color: #f0f0f0;
         }
 
-        /* Confirm Modal (Login Phase) */
+        /* Gaya modal yang ada (confirmModal) */
         #confirmModal {
-            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
             z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #confirmModal.show {
+            display: flex;
+            opacity: 1;
         }
 
         #confirmModal .modal-content {
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 450px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 380px;
+            text-align: left;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         #confirmModal .modal-content h4 {
-            font-size: 2em;
-            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #0066cc;
+            margin-bottom: 15px;
+            text-align: center;
         }
 
         #confirmModal .modal-content .info-table {
-            margin-bottom: 20px;
-        }
-
-        #confirmModal .modal-content .info-table td {
-            padding: 10px 0;
-            font-size: 1.15em;
-        }
-
-        #confirmModal .modal-content td:first-child {
-            width: 130px;
-            padding-right: 15px;
-        }
-
-        .checkbox-container {
-            margin-top: 20px;
-            margin-bottom: 20px;
-            font-size: 1.05em;
-            justify-content: center; /* Center checkbox */
-            padding-left: 0;
-        }
-
-        .checkbox-container input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            margin-right: 10px;
-            vertical-align: middle;
-            accent-color: #007bff; /* Custom checkbox color */
-        }
-
-        #modalMessage {
-            font-size: 0.95em;
-            margin-top: -15px;
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 15px;
         }
 
-        .button-container {
+        #confirmModal .modal-content .info-table tr {
+            border-bottom: 1px solid #eee;
+        }
+
+        #confirmModal .modal-content .info-table tr:last-child {
+            border-bottom: none;
+        }
+
+        #confirmModal .modal-content .info-table td {
+            padding: 8px 0;
+            font-size: 1.1em;
+        }
+
+        #confirmModal .modal-content td:first-child {
+            font-weight: bold;
+            color: #333;
+            width: 120px;
+            padding-right: 10px;
+        }
+
+        #confirmModal .modal-content td:last-child {
+            text-align: left;
+            color: #000;
+        }
+
+        /* Checkbox untuk konfirmasi */
+        .checkbox-container {
             display: flex;
-            gap: 15px; /* Space between buttons */
-            margin-top: 20px;
+            align-items: center;
+            justify-content: flex-start; /* Sejajarkan ke kiri */
+            margin-top: 15px;
+            margin-bottom: 15px;
+            font-size: 1em;
+            color: #333;
+            padding-left: 10px; /* Tambahkan padding dari tepi kiri konten modal */
         }
 
-        .button-container button {
-            flex: 1; /* Make buttons take equal width */
-            margin: 0; /* Remove individual button margins */
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0 8px 0 0; /* Sesuaikan margin untuk spasi */
+            cursor: pointer;
+            vertical-align: middle;
+            box-shadow: none; /* Hapus shadow input default */
+            display: inline-block; /* Pastikan sejajar dengan teks */
         }
 
-        /* Exam Container & Iframe */
+        .checkbox-container label {
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        #modalMessage {
+            color: red;
+            font-size: 0.9em;
+            text-align: center;
+            margin-top: -10px; /* Sesuaikan spasi dari checkbox */
+            margin-bottom: 10px;
+            min-height: 1.2em; /* Pastikan ada ruang untuk pesan */
+        }
+
+        /* Gaya untuk Container Ujian dan Iframe */
         #examContainer {
-            z-index: 500;
+            display: none; /* Tersembunyi secara default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: column;
+            background-color: #f0f0f0; /* Latar belakang untuk seluruh tampilan ujian */
+            z-index: 500; /* Di bawah overlay, di atas login */
+            opacity: 0; /* Status awal untuk transisi */
+            transition: opacity 0.5s ease-in-out; /* Transisi halus */
         }
 
         #countdownDisplay {
-            background-color: #007bff;
-            padding: 12px;
-            font-size: 1.6em;
-            font-weight: 700;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background-color: #0066cc;
+            color: white;
+            padding: 10px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            flex-shrink: 0; /* Mencegah menyusut */
         }
 
         #examContentWrapper {
-            background-color: #f8f8f8; /* Light background for wrapper */
+            display: flex;
+            flex-grow: 1; /* Ambil semua ruang vertikal yang tersedia */
+            width: 100%;
+            position: relative; /* Untuk positioning sidebar */
+            overflow: hidden; /* Penting untuk transisi sidebar */
+            background-color: transparent; /* Dibuat transparan */
         }
 
         #examIframe {
-            background-color: white; /* Ensure iframe background is white */
-            box-shadow: 0 0 15px rgba(0,0,0,0.05); /* Subtle shadow for iframe */
+            flex-grow: 1; /* Ambil semua ruang horizontal yang tersedia */
+            width: 100%; /* Awalnya 100% */
+            border: none; /* Tanpa border */
+            margin: 0;
+            padding: 0;
+            display: block; /* Pastikan berperilaku sebagai elemen blok */
+            transition: filter 0.3s ease, width 0.3s ease; /* Transisi halus untuk blur/grayscale dan lebar */
+        }
+        /* Pastikan iframe terlihat bahkan ketika pointer-events nonaktif untuk overlay */
+        #examIframe.blurred {
+            filter: grayscale(100%) blur(5px);
+            pointer-events: none; /* Nonaktifkan interaksi dengan iframe */
         }
 
-        /* Sidebar */
+        /* --- Sidebar Jawaban --- */
         #answerSidebar {
-            background-color: #ffffff; /* White background */
-            box-shadow: -5px 0 15px rgba(0,0,0,0.1); /* Shadow on the left edge */
-            border-left: none; /* Remove default border */
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            width: 250px; /* Lebar penuh sidebar saat terbuka */
+            background-color: transparent; /* Dibuat transparan */
+            box-shadow: none; /* Hapus bayangan */
+            display: flex;
+            flex-direction: column;
+            transform: translateX(calc(100% - 70px)); /* Awalnya tersembunyi, hanya 70px terlihat */
+            transition: transform 0.3s ease-in-out;
+            z-index: 600; /* Di atas iframe, di bawah overlay utama */
+            border-left: 1px solid #ddd;
         }
 
-        #sidebarToggle, #closeSidebarButton {
-            background-color: #28a745; /* Green */
+        #answerSidebar.open {
+            transform: translateX(0); /* Terbuka penuh */
+        }
+
+        /* Base styles for sidebarToggle (the right-side tab) */
+        #sidebarToggle {
+            background-color: #28a745;
             color: white;
             font-size: 1.1em;
             font-weight: bold;
-            border-radius: 8px 0 0 8px; /* Rounded only on the left side */
-            box-shadow: -3px 3px 10px rgba(0,0,0,0.1); /* Subtle shadow */
+            cursor: pointer;
+            text-align: center;
+            position: absolute; /* Posisikan relatif terhadap examContentWrapper */
+            right: 0; /* Posisikan di kanan examContentWrapper */
+            top: 0; /* Posisikan di bagian atas */
+            height: 30%; /* Tinggi 30% dari parent */
+            width: 70px; /* Lebar baru 70px */
+            display: flex; /* Default: visible */
+            align-items: center;
+            justify-content: center;
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 0; /* Hapus radius bawah */
+            box-shadow: none; /* Hapus bayangan */
+            transition: background-color 0.2s ease, transform 0.3s ease-in-out;
             padding: 0;
             box-sizing: border-box;
+            z-index: 601;
+            transform: translateX(0);
+        }
+
+        #sidebarToggle #sidebarText {
+            writing-mode: vertical-lr; /* Teks vertikal */
+            text-orientation: mixed;
+            transform: rotate(180deg); /* Putar untuk keterbacaan */
+            white-space: nowrap;
+            padding: 10px 5px; /* Padding untuk teks */
         }
 
         #sidebarToggle:hover {
             background-color: #218838;
         }
 
+        /* NEW: Styles for the dedicated Close Sidebar Button */
         #closeSidebarButton {
-            background-color: #dc3545; /* Red */
-            border-radius: 0 8px 8px 0; /* Rounded only on the right side */
-            box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+            display: none; /* Hidden by default */
+            position: absolute;
+            left: 0; /* Position on the left edge of the sidebar */
+            top: 0; /* Posisikan di bagian atas */
+            height: 30%; /* Tinggi 30% dari parent */
+            width: 70px; /* Lebar baru 70px */
+            background-color: #dc3545; /* Red for close action */
+            color: white;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-top-right-radius: 8px; /* Radius kanan atas */
+            border-bottom-right-radius: 0; /* Hapus radius kanan bawah */
+            box-shadow: none; /* Hapus bayangan */
+            display: flex;
+            flex-direction: column; /* Vertical layout for icon and text */
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            z-index: 602;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         #closeSidebarButton:hover {
-            background-color: #c82333;
+            background-color: #c82333; /* Darker red on hover */
         }
 
+        /* When sidebar is open, adjust iframe width and show/hide buttons */
+        #examContentWrapper.sidebar-open #examIframe {
+            width: calc(100% - 250px); /* Adjust iframe width when sidebar is open */
+        }
+
+        #examContentWrapper.sidebar-open #sidebarToggle {
+            display: none; /* Hide the right toggle button when sidebar is open */
+        }
+
+        #examContentWrapper.sidebar-open #answerSidebar {
+            transform: translateX(0); /* Fully open the sidebar */
+        }
+
+        #examContentWrapper.sidebar-open #closeSidebarButton {
+            display: flex; /* Show the left close button when sidebar is open */
+        }
+
+
         #answerListContainer {
-            padding: 15px; /* More padding */
-            gap: 10px; /* More space between boxes */
-            grid-template-columns: repeat(auto-fill, minmax(35px, 1fr)); /* Slightly larger boxes */
+            flex-grow: 1;
+            overflow-y: auto; /* Scrollable for answer list */
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); /* Kolom responsif, diperkecil */
+            gap: 8px;
+            flex-shrink: 1; /* Izinkan menyusut */
+            margin-left: 70px; /* Space for the new wider close button */
         }
 
         .answer-box {
-            background-color: #f8f8f8;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 8px 5px; /* More padding */
-            height: 40px; /* Taller boxes */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 5px 3px; /* Padding diperkecil */
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 30px; /* Tinggi tetap untuk kotak jawaban, diperkecil */
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
 
         .answer-box:hover {
-            background-color: #e9ecef;
-            transform: translateY(-2px);
+            background-color: #e0e0e0;
         }
 
         .answer-box .question-number {
-            font-size: 0.85em; /* Larger font */
-            color: #555;
+            font-weight: bold;
+            margin-bottom: 2px;
+            color: #333; /* ORIGINAL COLOR */
+            font-size: 0.7em; /* Ukuran font diperkecil */
+            line-height: 1; /* Sesuaikan line-height */
         }
 
         .answer-box .selected-answer {
-            font-size: 0.85em; /* Larger font */
-            color: #333;
+            font-weight: bold;
+            color: #555; /* ORIGINAL COLOR */
+            font-size: 0.7em; /* Ukuran font diperkecil */
+            line-height: 1; /* Sesuaikan line-height */
         }
 
         .answer-box.answered {
-            background-color: #d4edda;
-            border-color: #28a745;
-            color: #155724; /* Darker green text */
-        }
-        .answer-box.answered .question-number,
-        .answer-box.answered .selected-answer {
-            color: #155724;
+            background-color: #d4edda; /* Hijau muda */
+            border-color: #28a745; /* Hijau */
         }
 
         .answer-box.unanswered {
-            background-color: #f8d7da;
-            border-color: #dc3545;
-            color: #721c24; /* Darker red text */
-        }
-        .answer-box.unanswered .question-number,
-        .answer-box.unanswered .selected-answer {
-            color: #721c24;
+            background-color: #f8d7da; /* Merah muda */
+            border-color: #dc3545; /* Merah */
         }
 
+        /* New style for submission warning message */
         .submission-warning-message {
-            font-size: 1em; /* Slightly larger */
-            margin: 10px 0 15px 70px; /* Adjusted margin */
-            color: #dc3545; /* Ensure red */
+            color: red;
+            font-weight: bold;
+            text-align: center;
+            margin: 5px 0 10px 70px; /* Adjust margin to align with button */
+            font-size: 0.9em;
+            min-height: 1.2em; /* Ensure space even when empty */
         }
 
         #submitAnswersButton {
-            padding: 15px; /* More padding */
-            font-size: 1.2em; /* Larger font */
-            margin-top: 10px;
-            margin-bottom: 15px;
-            margin-left: 70px;
-            width: calc(100% - 85px); /* Adjusted width */
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,123,255,0.2);
+            background-color: #007bff; /* BIRU */
+            color: white;
+            padding: 12px;
+            margin-top: 0px; /* Margin atas disesuaikan */
+            margin-bottom: 10px; /* Margin bawah */
+            margin-left: 70px; /* Sesuaikan dengan margin-left answerListContainer */
+            margin-right: 10px; /* Sesuaikan dengan padding-right answerListContainer */
+            width: calc(100% - 80px); /* Lebar sidebar (250px) - lebar tombol kiri (70px) - padding kiri (10px) - padding kanan (10px) */
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            flex-shrink: 0; /* Mencegah menyusut */
+            transition: background-color 0.2s ease;
         }
 
         #submitAnswersButton:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,123,255,0.3);
+            background-color: #0056b3; /* Biru lebih gelap saat hover */
         }
 
-        /* Answer Selection Modal (now inside examContainer) */
-        #answerSelectionModal .modal-content {
-            padding: 30px;
-            border-radius: 12px;
+        /* --- Answer Selection Modal --- */
+        .custom-modal { /* Reusing .custom-modal for answer selection */
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's above other exam elements */
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .custom-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .custom-modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
             max-width: 350px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 90%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            max-height: 80vh; /* Batasi tinggi untuk konten yang dapat di-scroll */
+            overflow-y: auto; /* Aktifkan scrolling */
+            display: flex;
+            flex-direction: column;
+        }
+
+        #answerSelectionModal .modal-content { /* Specific content style for answer selection */
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 300px;
+            width: 90%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            text-align: center;
         }
 
         #answerSelectionModal h4 {
-            font-size: 1.8em;
-            margin-bottom: 25px;
+            font-size: 1.5em;
+            color: #0066cc;
+            margin-bottom: 20px;
         }
 
         #answerOptions {
-            gap: 15px; /* More space between buttons */
-            margin-bottom: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         #answerOptions button {
-            width: 70px; /* Larger buttons */
-            height: 70px;
-            font-size: 1.8em;
+            width: 60px;
+            height: 60px;
+            font-size: 1.5em;
             border-radius: 50%;
-            background-color: #e9ecef; /* Lighter gray */
-            border: 1px solid #dcdcdc;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px solid #ccc;
+            transition: background-color 0.2s ease, transform 0.1s ease;
         }
 
         #answerOptions button:hover {
-            background-color: #dee2e6;
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            background-color: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        #answerOptions button:active {
+            transform: translateY(0);
         }
 
         #answerOptions button.selected {
-            background-color: #28a745;
+            background-color: #28a745; /* HIJAU */
+            color: white;
             border-color: #28a745;
-            box-shadow: 0 4px 8px rgba(40,167,69,0.3);
         }
 
         #clearAnswerButton {
-            background-color: #6c757d; /* Muted gray */
-            padding: 12px 25px;
-            font-size: 1.1em;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(108,117,125,0.2);
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
         }
         #clearAnswerButton:hover {
-            background-color: #5a6268;
-            box-shadow: 0 6px 16px rgba(108,117,125,0.3);
+            background-color: #c82333;
         }
 
-        /* Warning Overlay (5 minutes left) */
+
+        /* BARU: Overlay Peringatan (sisa 5 menit) - GAYA DIPERBARUI untuk transparansi */
         #warningOverlay {
-            z-index: 1000; /* Ensure it's above exam content */
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0);
+            z-index: 10;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #warningOverlay.show {
+            display: flex;
+            opacity: 1;
         }
 
         .warning-content-box {
-            background: rgba(255, 255, 255, 0.1); /* More transparent */
-            padding: 40px;
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 90%;
             box-shadow: none;
+            text-align: center;
+            box-sizing: border-box;
+            pointer-events: none;
         }
 
         #warningCountdown {
-            font-size: 5em; /* Larger countdown */
-            text-shadow: 0 0 15px rgba(255,0,0,0.7);
+            font-size: 4em;
+            font-weight: bold;
+            color: red;
+            text-shadow: 0 0 10px rgba(255,0,0,0.5);
+            margin-bottom: 10px;
+            pointer-events: none;
+            animation: blink-smooth 1.5s infinite alternate;
+        }
+
+        @keyframes blink-smooth {
+            0% { opacity: 1; }
+            100% { opacity: 0.5; }
         }
 
         #warningMessage {
-            font-size: 1.8em; /* Larger message */
-            color: white; /* White text for better contrast on dark background */
-            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+            font-size: 1.5em;
+            color: black;
+            font-weight: bold;
+            pointer-events: none;
         }
 
-        /* Submission Confirmation Overlay */
+        /* BARU: Gaya untuk Overlay Konfirmasi Pengiriman (Diperbarui agar sesuai dengan Overlay Terkunci) */
         #submissionConfirmationOverlay {
-            z-index: 10002; /* Highest z-index */
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #submissionConfirmationOverlay.show {
+            display: flex;
+            opacity: 1;
         }
 
         .submission-content {
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+            text-align: center;
+            box-sizing: border-box;
         }
 
         #submissionConfirmationOverlay h1 {
-            font-size: 3em;
-            margin-bottom: 20px;
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #4CAF50; /* Default for success */
         }
 
         #submissionConfirmationOverlay p {
-            font-size: 1.3em;
-            margin-bottom: 30px;
-        }
-
-        #submissionConfirmationOverlay button {
-            padding: 15px 30px;
-            font-size: 1.3em;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.25);
-        }
-
-        /* Fullscreen Exit Warning Overlay */
-        #fullscreenExitWarningOverlay {
-            z-index: 1000;
-        }
-
-        .exit-warning-content {
-            padding: 35px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .exit-warning-content h2 {
-            font-size: 2.5em;
+            font-size: 1.1em;
+            color: #333;
             margin-bottom: 20px;
         }
 
-        .exit-warning-content p {
+        #submissionConfirmationOverlay button {
+            padding: 12px 25px;
             font-size: 1.2em;
-            margin-bottom: 25px;
+            border: none;
+            border-radius: 8px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
-        .exit-warning-button {
-            padding: 14px 28px;
-            font-size: 1.2em;
+        #submissionConfirmationOverlay button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+
+        #submissionConfirmationOverlay button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0,128,0,0.4);
+        }
+
+        /* BARU: Overlay Peringatan Keluar Layar Penuh */
+        #fullscreenExitWarningOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 30;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            flex-direction: column;
+        }
+        #fullscreenExitWarningOverlay.show {
+            display: flex;
+            opacity: 1;
+        }
+        .exit-warning-content {
+            background: white;
+            padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .exit-warning-content h2 {
+            font-size: 2.2em;
+            color: #dc3545;
+            margin-bottom: 15px;
+        }
+        .exit-warning-content p {
+            font-size: 1.1em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .exit-warning-button {
+            padding: 12px 25px;
+            font-size: 1.2em;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .exit-warning-button:hover {
+            background-color: #0056b3;
         }
 
-        /* Fullscreen Instruction Overlay */
-        #fullscreenOverlay {
-            z-index: 1000;
+        /* BARU: CSS untuk mencegah pemilihan teks secara global di halaman utama */
+        .no-select {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
+        /* GAYA BARU UNTUK fullscreenOverlay */
         #fullscreenOverlay .overlay-content {
-            padding: 50px;
-            border-radius: 20px;
-            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); /* Gradien biru */
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            box-sizing: border-box;
+            animation: fadeInScale 0.5s ease-out forwards; /* Animasi muncul */
         }
 
         #fullscreenOverlay .overlay-title {
-            font-size: 3em;
-            margin-bottom: 25px;
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         }
 
         #fullscreenOverlay .overlay-instructions {
-            margin-bottom: 40px;
-            font-size: 1.3em;
-            line-height: 1.8;
+            list-style: none;
+            padding: 0;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            line-height: 1.6;
         }
 
         #fullscreenOverlay .overlay-instructions li {
-            margin-bottom: 12px;
-            padding-left: 35px;
+            margin-bottom: 10px;
+            position: relative;
+            padding-left: 30px;
+            text-align: left;
         }
 
         #fullscreenOverlay .overlay-instructions li::before {
-            font-size: 1.3em;
+            content: '✅'; /* Icon centang */
+            position: absolute;
+            left: 0;
+            color: #d4edda; /* Warna hijau muda */
+            font-size: 1.2em;
         }
 
         #fullscreenOverlay .overlay-button {
-            padding: 18px 35px;
-            font-size: 1.4em;
-            border-radius: 10px;
+            background-color: #28a745; /* Hijau terang */
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.3em;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        #fullscreenOverlay .overlay-button:hover {
+            background-color: #218838; /* Hijau lebih gelap */
+            transform: translateY(-3px);
             box-shadow: 0 8px 20px rgba(0,0,0,0.3);
         }
 
-        /* Media Queries for Responsiveness */
-        @media (max-width: 768px) {
-            .container {
-                width: 95%;
-                margin: 20px auto;
-            }
-            .header-box {
-                padding: 20px 10px;
-            }
-            .header-box .logo {
-                width: 80px;
-            }
-            .title {
-                font-size: 22px;
-            }
-            .card-body {
-                padding: 25px;
-            }
-            .judul-ujian {
-                font-size: 24px;
-                margin: 10px 0 20px;
-            }
-            input, .custom-dropdown-display, .token-input-group {
-                padding: 10px;
-                font-size: 16px;
-                height: 45px;
-                border-radius: 6px;
-            }
-            .token-separator {
-                padding: 10px 6px;
-                font-size: 16px;
-                height: 45px;
-            }
-            #displayStudentId {
-                width: 70px;
-                min-width: 70px;
-                max-width: 70px;
-            }
-            button {
-                padding: 12px 20px;
-                font-size: 17px;
-                border-radius: 6px;
-                margin: 12px auto 8px;
-            }
-            .message {
-                font-size: 14px;
-                margin-bottom: 12px;
-            }
-            .footer {
-                font-size: 12px;
-                margin-top: 25px;
-                padding-bottom: 12px;
-            }
+        #fullscreenOverlay .overlay-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
 
-            /* Modals */
-            .custom-modal-content {
-                padding: 25px;
-                max-width: 95%;
-                border-radius: 10px;
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
             }
-            .custom-modal-content h4 {
-                font-size: 1.4em;
-                margin-bottom: 15px;
-            }
-            .custom-modal-list li {
-                padding: 12px 15px;
-                font-size: 1.05em;
-            }
-            #confirmModal .modal-content {
-                padding: 25px;
-                max-width: 95%;
-            }
-            #confirmModal .modal-content h4 {
-                font-size: 1.8em;
-            }
-            #confirmModal .modal-content .info-table td {
-                font-size: 1.05em;
-            }
-            #confirmModal .modal-content td:first-child {
-                width: 100px;
-            }
-            .checkbox-container {
-                font-size: 0.95em;
-                margin-top: 15px;
-                margin-bottom: 15px;
-            }
-            .button-container {
-                gap: 10px;
-                margin-top: 15px;
-            }
-
-            /* Exam Container */
-            #countdownDisplay {
-                padding: 10px;
-                font-size: 1.4em;
-            }
-            #answerSidebar {
-                width: 220px; /* Slightly narrower sidebar */
-                transform: translateX(calc(100% - 60px)); /* Only 60px visible */
-            }
-            #answerSidebar.open {
-                transform: translateX(0);
-            }
-            #sidebarToggle, #closeSidebarButton {
-                width: 60px; /* Narrower toggle */
-                height: 25%; /* Shorter height */
-            }
-            #answerListContainer {
-                padding: 10px;
-                gap: 8px;
-                grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
-                margin-left: 60px; /* Adjusted margin */
-            }
-            .answer-box {
-                padding: 6px 4px;
-                height: 35px;
-                border-radius: 6px;
-            }
-            .answer-box .question-number,
-            .answer-box .selected-answer {
-                font-size: 0.8em;
-            }
-            .submission-warning-message {
-                font-size: 0.9em;
-                margin: 8px 0 12px 60px;
-            }
-            #submitAnswersButton {
-                padding: 12px;
-                font-size: 1.05em;
-                margin-left: 60px;
-                width: calc(100% - 70px);
-            }
-
-            /* Answer Selection Modal */
-            #answerSelectionModal .modal-content {
-                padding: 25px;
-                max-width: 90%;
-            }
-            #answerSelectionModal h4 {
-                font-size: 1.6em;
-                margin-bottom: 20px;
-            }
-            #answerOptions {
-                gap: 12px;
-                margin-bottom: 20px;
-            }
-            #answerOptions button {
-                width: 60px;
-                height: 60px;
-                font-size: 1.6em;
-            }
-            #clearAnswerButton {
-                padding: 10px 20px;
-                font-size: 1em;
-            }
-
-            /* Overlays */
-            #warningCountdown {
-                font-size: 4em;
-            }
-            #warningMessage {
-                font-size: 1.5em;
-            }
-            .warning-content-box {
-                padding: 30px;
-            }
-            #submissionConfirmationOverlay h1 {
-                font-size: 2.5em;
-            }
-            #submissionConfirmationOverlay p {
-                font-size: 1.1em;
-            }
-            #submissionConfirmationOverlay button {
-                font-size: 1.1em;
-            }
-            .submission-content {
-                padding: 30px;
-            }
-            .exit-warning-content {
-                padding: 30px;
-            }
-            .exit-warning-content h2 {
-                font-size: 2.2em;
-            }
-            .exit-warning-content p {
-                font-size: 1.1em;
-            }
-            .exit-warning-button {
-                font-size: 1.1em;
-            }
-            #fullscreenOverlay .overlay-content {
-                padding: 40px;
-            }
-            #fullscreenOverlay .overlay-title {
-                font-size: 2.5em;
-            }
-            #fullscreenOverlay .overlay-instructions {
-                font-size: 1.1em;
-            }
-            #fullscreenOverlay .overlay-instructions li {
-                padding-left: 30px;
-            }
-            #fullscreenOverlay .overlay-instructions li::before {
-                font-size: 1.1em;
-            }
-            #fullscreenOverlay .overlay-button {
-                font-size: 1.2em;
+            to {
+                opacity: 1;
+                transform: scale(1);
             }
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 600px) {
             .container {
-                margin: 0;
-                width: 100%;
-                min-height: 100vh; /* Full height on small phones */
+                margin-top: 40px;
+                margin-bottom: 40px;
                 border-radius: 0;
+                border: none;
                 box-shadow: none;
+                width: 100%;
             }
             .header-box {
-                padding: 18px 10px;
                 border-radius: 0;
-            }
-            .header-box .logo {
-                width: 70px;
-            }
-            .title {
-                font-size: 20px;
-            }
-            .card-body {
-                padding: 20px;
-            }
-            .judul-ujian {
-                font-size: 22px;
-                margin: 10px 0 15px;
-            }
-            input, .custom-dropdown-display, .token-input-group {
-                padding: 8px;
-                font-size: 15px;
-                height: 40px;
-                border-radius: 5px;
-            }
-            .token-separator {
-                padding: 8px 5px;
-                font-size: 15px;
-                height: 40px;
-            }
-            #displayStudentId {
-                width: 60px;
-                min-width: 60px;
-                max-width: 60px;
-            }
-            button {
-                padding: 10px 15px;
-                font-size: 16px;
-                border-radius: 5px;
-                margin: 10px auto 5px;
-            }
-            .message {
-                font-size: 13px;
-                margin-bottom: 10px;
-            }
-            .footer {
-                font-size: 11px;
-                margin-top: 20px;
-                padding-bottom: 10px;
-            }
-
-            /* Modals */
-            .custom-modal-content {
-                padding: 20px;
-                border-radius: 8px;
-            }
-            .custom-modal-content h4 {
-                font-size: 1.3em;
-                margin-bottom: 12px;
-            }
-            .custom-modal-list li {
-                padding: 10px 12px;
-                font-size: 1em;
             }
             #confirmModal .modal-content {
                 padding: 20px;
+                max-width: 90%;
             }
             #confirmModal .modal-content h4 {
-                font-size: 1.6em;
+                font-size: 1.5em;
             }
             #confirmModal .modal-content .info-table td {
                 font-size: 1em;
@@ -992,111 +1048,12 @@
                 width: 90px;
             }
             .checkbox-container {
-                font-size: 0.9em;
-                margin-top: 10px;
-                margin-bottom: 10px;
+                padding-left: 5px;
             }
-            .button-container {
-                gap: 8px;
-                margin-top: 10px;
-            }
-
-            /* Exam Container */
-            #countdownDisplay {
-                font-size: 1.2em;
-            }
-            #answerSidebar {
-                width: 180px; /* Even narrower sidebar */
-                transform: translateX(calc(100% - 50px)); /* Only 50px visible */
-            }
-            #sidebarToggle, #closeSidebarButton {
-                width: 50px; /* Narrower toggle */
-                height: 20%; /* Shorter height */
-            }
-            #answerListContainer {
-                padding: 8px;
-                gap: 6px;
-                grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
-                margin-left: 50px; /* Adjusted margin */
-            }
-            .answer-box {
-                padding: 5px 3px;
-                height: 30px;
-                border-radius: 5px;
-            }
-            .answer-box .question-number,
-            .answer-box .selected-answer {
-                font-size: 0.75em;
-            }
-            .submission-warning-message {
-                font-size: 0.85em;
-                margin: 5px 0 10px 50px;
-            }
-            #submitAnswersButton {
-                padding: 10px;
-                font-size: 0.95em;
-                margin-left: 50px;
-                width: calc(100% - 60px);
-            }
-
-            /* Answer Selection Modal */
-            #answerSelectionModal .modal-content {
-                padding: 20px;
-            }
-            #answerSelectionModal h4 {
-                font-size: 1.4em;
-                margin-bottom: 15px;
-            }
-            #answerOptions {
-                gap: 10px;
-                margin-bottom: 15px;
-            }
-            #answerOptions button {
-                width: 50px;
-                height: 50px;
-                font-size: 1.4em;
-            }
-            #clearAnswerButton {
-                padding: 8px 15px;
-                font-size: 0.9em;
-            }
-
-            /* Overlays */
-            #warningCountdown {
-                font-size: 3em;
-            }
-            #warningMessage {
-                font-size: 1.2em;
-            }
-            .warning-content-box {
-                padding: 25px;
-            }
-            #submissionConfirmationOverlay h1 {
-                font-size: 2em;
-            }
-            #submissionConfirmationOverlay p {
-                font-size: 1em;
-            }
-            #submissionConfirmationOverlay button {
-                font-size: 1em;
-            }
-            .submission-content {
-                padding: 25px;
-            }
-            .exit-warning-content {
-                padding: 25px;
-            }
-            .exit-warning-content h2 {
-                font-size: 2em;
-            }
-            .exit-warning-content p {
-                font-size: 1em;
-            }
-            .exit-warning-button {
-                font-size: 1em;
-            }
+            /* Media queries yang diperbarui untuk overlay instruksi */
             #fullscreenOverlay .overlay-content {
-                padding: 30px;
+                padding: 25px;
+                max-width: 95%;
             }
             #fullscreenOverlay .overlay-title {
                 font-size: 2em;
@@ -1112,6 +1069,141 @@
             }
             #fullscreenOverlay .overlay-button {
                 font-size: 1.1em;
+                padding: 12px 25px;
+            }
+            /* Media queries yang diperbarui untuk overlay peringatan */
+            #warningCountdown {
+                font-size: 3em;
+            }
+            #warningMessage {
+                font-size: 1.2em;
+            }
+            .warning-content-box {
+                padding: 20px;
+                max-width: 90%;
+            }
+            /* Media queries yang diperbarui untuk overlay pengiriman */
+            #submissionConfirmationOverlay h1 {
+                font-size: 2em;
+            }
+            #submissionConfirmationOverlay p {
+                font-size: 1.2em;
+            }
+            #submissionConfirmationOverlay button {
+                font-size: 1em;
+                padding: 12px 25px;
+            }
+            .submission-content {
+                padding: 20px;
+                max-width: 90%;
+            }
+            /* Media queries untuk overlay baru */
+            .exit-warning-content {
+                padding: 20px;
+                max-width: 90%;
+            }
+            .exit-warning-content h2 {
+                font-size: 1.8em;
+            }
+            .exit-warning-content p {
+                font-size: 1em;
+            }
+            .exit-warning-button {
+                font-size: 1em;
+                padding: 10px 20px;
+            }
+
+            /* Modal kustom untuk seluler */
+            .custom-modal-content {
+                padding: 15px;
+                width: 95%;
+                max-height: 90vh;
+            }
+            .custom-modal-content h4 {
+                font-size: 1.2em;
+            }
+            .custom-modal-list li {
+                padding: 10px 12px;
+                font-size: 1em;
+            }
+
+            /* Sidebar responsif untuk mobile */
+            #answerSidebar {
+                width: 180px; /* Lebar lebih kecil di mobile */
+                transform: translateX(calc(100% - 70px)); /* Hanya 70px terlihat */
+            }
+            #answerSidebar.open {
+                transform: translateX(0);
+            }
+            #sidebarToggle {
+                width: 70px; /* Lebar tombol toggle lebih kecil */
+                height: 30%; /* Tinggi 30% dari parent */
+            }
+            #sidebarToggle #sidebarText {
+                padding: 8px 3px; /* Sesuaikan padding untuk mobile */
+            }
+            #closeSidebarButton {
+                width: 70px; /* Lebar tombol tutup lebih kecil */
+                height: 30%; /* Tinggi 30% dari parent */
+            }
+            #closeSidebarButton #closeSidebarText {
+                padding: 8px 3px; /* Sesuaikan padding untuk mobile */
+            }
+            #answerListContainer {
+                grid-template-columns: repeat(auto-fill, minmax(25px, 1fr)); /* Kolom lebih kecil */
+                gap: 5px;
+                margin-left: 70px; /* Space for the new close button on mobile */
+            }
+            .answer-box {
+                height: 30px; /* Tinggi kotak lebih kecil */
+                font-size: 0.8em;
+            }
+            .answer-box .question-number,
+            .answer-box .selected-answer {
+                font-size: 0.7em; /* Font size for mobile */
+            }
+            #submitAnswersButton {
+                font-size: 0.9em;
+                padding: 10px;
+                width: calc(100% - 80px); /* Adjust width for mobile */
+            }
+            #answerSelectionModal .modal-content {
+                max-width: 280px;
+            }
+            #answerOptions button {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .header-box .logo {
+                width: 60px;
+            }
+            .title {
+                font-size: 18px;
+            }
+            .card-body {
+                padding: 15px;
+            }
+            input {
+                font-size: 14px;
+                padding: 8px;
+            }
+            button {
+                font-size: 14px;
+                padding: 8px 15px;
+            }
+            .footer {
+                font-size: 10px;
+            }
+            .checkbox-container {
+                font-size: 0.9em;
+            }
+            .custom-dropdown-display {
+                font-size: 14px;
+                padding: 8px;
             }
         }
     </style>
@@ -1791,7 +1883,6 @@
         function openClassModal() {
             if (customSelectKelasDisplay.classList.contains('disabled')) return;
             classModal.classList.add('show');
-            customSelectKelasDisplay.classList.add('open'); /* Add class to rotate arrow */
             isAnyModalOpen = true; // Set modal status
         }
 
@@ -1801,7 +1892,6 @@
          */
         function closeClassModal() {
             classModal.classList.remove('show');
-            customSelectKelasDisplay.classList.remove('open'); /* Remove class to reset arrow */
             isAnyModalOpen = false; // Set modal status
         }
 
@@ -1825,7 +1915,6 @@
         function openStudentModal() {
             if (customSelectNamaSiswaDisplay.classList.contains('disabled')) return;
             studentModal.classList.add('show');
-            customSelectNamaSiswaDisplay.classList.add('open'); /* Add class to rotate arrow */
             isAnyModalOpen = true; // Set modal status
         }
 
@@ -1835,7 +1924,6 @@
          */
         function closeStudentModal() {
             studentModal.classList.remove('show');
-            customSelectNamaSiswaDisplay.classList.remove('open'); /* Remove class to reset arrow */
             isAnyModalOpen = false; // Set modal status
         }
 
