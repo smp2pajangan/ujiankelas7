@@ -434,8 +434,11 @@
             padding: 10px;
             font-size: 1.5em;
             font-weight: bold;
-            text-align: center;
+            display: flex; /* Use flexbox for alignment */
+            align-items: center; /* Vertically center items */
+            justify-content: flex-start; /* Align items to the start (left) */
             flex-shrink: 0; /* Mencegah menyusut */
+            gap: 10px; /* Space between timer, name, and class */
         }
 
         #examContentWrapper {
@@ -1261,7 +1264,9 @@
     </div>
 
     <div id="examContainer" style="display: none;">
-        <div id="countdownDisplay"></div>
+        <div id="countdownDisplay">
+            <span id="timerText"></span> | <span id="studentNameDisplay"></span> | <span id="classDisplay"></span>
+        </div>
         <div id="examContentWrapper">
             <iframe id="examIframe" src="" frameborder="0"></iframe>
 
@@ -1408,7 +1413,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-        import { getDatabase, ref, get, child, runTransaction, set, onValue, off } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+        import { getDatabase, ref, get, child, runTransaction, set, onValue, off, update } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
         // Firebase configuration (MATCHING ADMIN PANEL)
         const firebaseConfig = {
@@ -1447,6 +1452,9 @@
         const loginContainer = document.getElementById('loginContainer');
         const examContainer = document.getElementById('examContainer');
         const countdownDisplay = document.getElementById('countdownDisplay');
+        const timerText = document.getElementById('timerText'); // NEW
+        const studentNameDisplay = document.getElementById('studentNameDisplay'); // NEW
+        const classDisplay = document.getElementById('classDisplay'); // NEW
         const examIframe = document.getElementById('examIframe');
         const fullscreenOverlay = document.getElementById('fullscreenOverlay');
         const overlayUnderstandBtn = document.getElementById('overlayUnderstandBtn');
@@ -1967,13 +1975,15 @@
          * @returns {void}
          */
         function updateTimerDisplay() { // Renamed from startCountdown
-            if (!countdownDisplay) return; // Pastikan elemen countdownDisplay ada
+            if (!timerText || !studentNameDisplay || !classDisplay) return; // Pastikan elemen ada
 
             const minutes = Math.floor(remainingTime / 60);
             const seconds = remainingTime % 60;
 
             const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            countdownDisplay.textContent = `Sisa Waktu: ${formattedTime}`;
+            timerText.textContent = formattedTime;
+            studentNameDisplay.textContent = selectedStudentData ? selectedStudentData.name : '';
+            classDisplay.textContent = selectedStudentData ? selectedStudentData.class : '';
 
             // --- KONDISI 3: Kontrol Tombol KIRIM JAWABAN berdasarkan Waktu ---
             const thirtyMinutesInSeconds = 30 * 60; // 30 menit dalam detik
@@ -2006,7 +2016,7 @@
 
             if (remainingTime <= 0) {
                 clearInterval(timerInterval); // Hentikan timer
-                countdownDisplay.textContent = "00:00"; // Tampilkan 00:00
+                timerText.textContent = "00:00"; // Tampilkan 00:00
                 countdownDisplay.style.display = 'block'; // Pastikan kembali terlihat
                 warningOverlay.style.opacity = 0; // Ensure it fades out
                 setTimeout(() => { warningOverlay.style.display = 'none'; }, 300);
@@ -2073,11 +2083,11 @@
          * @param {boolean} isAutoSubmit - True if this is an automatic submission (e.g., time ran out).
          * @returns {void}
          */
-        function showSubmissionConfirmationOverlay(isAutoSubmit) {
+        async function showSubmissionConfirmationOverlay(isAutoSubmit) {
             sessionStorage.clear(); // Clear session storage on successful submission
             loginContainer.style.display = 'none'; // Ensure login container is hidden
             examContainer.style.opacity = 0; // Start fade out for exam container
-            setTimeout(() => {
+            setTimeout(async () => { // Made async to await Firebase update
                 examContainer.style.display = 'none'; // Hide exam container after fade out
                 submissionConfirmationOverlay.style.display = 'flex'; // Show submission overlay
                 setTimeout(() => { submissionConfirmationOverlay.style.opacity = 1; }, 10); // Fade in submission overlay
@@ -2108,6 +2118,19 @@
                     submissionOverlayMessage.innerText = 'JAWABAN ANDA BERHASIL TERKIRIM!';
                 }
                 backToLoginFromSubmissionBtn.innerText = 'KEMBALI'; // Ensure button text is consistent
+
+                // Set isLoggedIn to false in Firebase
+                const tokenPrefix = foundTokenGlobal?.token;
+                const studentId = selectedStudentData?.id ? padStudentId(selectedStudentData.id) : null;
+                if (tokenPrefix && studentId) {
+                    const accessStatusRef = child(examAccessStatusRef, `${tokenPrefix}/${studentId}`);
+                    try {
+                        await update(accessStatusRef, { isLoggedIn: false });
+                        console.log("isLoggedIn set to false on submission.");
+                    } catch (error) {
+                        console.error("Failed to set isLoggedIn to false on submission:", error);
+                    }
+                }
 
             }, 500); // Match examContainer transition duration
         }
@@ -2291,13 +2314,18 @@
                 console.log("studentAnswers diinisialisasi kosong.");
             }
 
-            examContainer.style.display = 'flex'; // Make exam container visible
+            loginContainer.style.opacity = 0; // Fade out login
             setTimeout(() => {
-                examContainer.style.opacity = 1; // Fade in exam
-                isInExamMode = true;
-                toggleExamSecurityFeatures(true);
-                renderAnswerBoxes(); // Render answer boxes when exam starts
-            }, 10); // Small delay for fade-in effect
+                loginContainer.style.display = 'none';
+                examContainer.style.display = 'flex'; // Make exam container visible
+                setTimeout(() => {
+                    examContainer.style.opacity = 1; // Fade in exam
+                    isInExamMode = true;
+                    toggleExamSecurityFeatures(true);
+                    renderAnswerBoxes(); // Render answer boxes when exam starts
+                }, 10); // Small delay for fade-in effect
+            }, 500); // Match loginContainer fade-out duration
+
 
             examIframe.src = examUrl;
             
@@ -2306,10 +2334,15 @@
             const elapsedSeconds = Math.floor((Date.now() - examStartTime) / 1000);
             remainingTime = totalDurationSeconds - elapsedSeconds; 
             
+            console.log(`DEBUG: startExamProcess - totalDurationSeconds: ${totalDurationSeconds}, elapsedSeconds: ${elapsedSeconds}, calculated remainingTime: ${remainingTime}`);
+
             if (remainingTime < 0) remainingTime = 0; // Ensure remaining time is not negative
+            console.log(`DEBUG: startExamProcess - final remainingTime (after clamping): ${remainingTime}`);
+
 
             timerInterval = setInterval(updateTimerDisplay, 1000); // Start timer
             countdownDisplay.style.display = 'block'; // Ensure countdown display is visible
+            updateTimerDisplay(); // Initial call to display immediately
 
             attemptFullscreen(); // Request fullscreen here
             history.pushState(null, '', location.href); // Prevent back button
@@ -2385,6 +2418,9 @@
                     const totalDurationSeconds = storedExamDurationMinutes * 60;
                     remainingTime = totalDurationSeconds - elapsedSeconds; // Assign to remainingTime
 
+                    console.log(`DEBUG: restoreExamState - totalDurationSeconds: ${totalDurationSeconds}, elapsedSeconds: ${elapsedSeconds}, calculated remainingTime: ${remainingTime}`);
+
+
                     if (remainingTime > 0) {
                         // Transition to exam view
                         loginContainer.style.opacity = 0; // Fade out login
@@ -2408,7 +2444,7 @@
                         loginContainer.style.display = 'none';
                         examContainer.style.display = 'flex';
                         examContainer.style.opacity = 1;
-                        countdownDisplay.textContent = "Waktu Habis! Mengirim Jawaban..."; // Update message
+                        timerText.textContent = "00:00"; // Update message
                         countdownDisplay.style.display = 'block';
                         // Directly call submitAnswers for auto-submission
                         submitAnswers(true);
@@ -2460,8 +2496,8 @@
             globalExamUrl = foundTokenGlobal.googleDriveUrl;
             globalExamDurationMinutes = examDurationMinutes;
             globalNumQuestions = numQuestions;
-            // Use the timestamp of the token's start time
-            globalExamStartTime = new Date(foundTokenGlobal.startTime).getTime(); 
+            // globalExamStartTime is already correctly set by cekToken from exam_access_status
+            // DO NOT OVERWRITE IT HERE: globalExamStartTime = new Date(foundTokenGlobal.startTime).getTime(); 
             globalInitialAnswers = initialAnswers; // Ensure this is passed and stored
 
             showOverlay(globalInitialAnswers); // Show overlay, which will call startExamProcess after dismissal
@@ -2854,6 +2890,21 @@
                     foundTokenGlobal = foundToken; // Store globally
                     console.log("cekToken: foundToken.answerKey is:", foundToken.answerKey);
 
+                    // --- NEW: Check isLoggedIn status before proceeding ---
+                    const accessStatusRef = child(examAccessStatusRef, `${tokenPrefix}/${studentId}`);
+                    const accessStatusSnapshot = await get(accessStatusRef);
+
+                    if (accessStatusSnapshot.exists()) {
+                        const accessData = accessStatusSnapshot.val();
+                        if (accessData.isLoggedIn === true) {
+                            message.style.color = "red";
+                            message.textContent = "Akun Anda sudah login diperangkat lain.";
+                            updateLoginButtonStatus();
+                            return; // Block login
+                        }
+                    }
+                    // --- END NEW: Check isLoggedIn status ---
+
 
                     const now = new Date();
                     const startTime = new Date(foundToken.startTime);
@@ -2924,7 +2975,6 @@
                     }
                     // --- End Always load student answers from Firebase ---
 
-                    const accessStatusRef = child(examAccessStatusRef, `${foundToken.key}/${selectedStudentData.id}`);
                     let initialAccessCount = 0; // To store accessCount before transaction
                     let examAccessDataAfterTransaction = null; // To store the result of the transaction
 
@@ -2938,26 +2988,15 @@
                                     accessCount: 1,
                                     firstLoginTimestamp: nowAccess,
                                     lastAccessTimestamp: nowAccess,
-                                    examStartTime: nowAccess // Simpan timestamp numerik saat ini
+                                    isLoggedIn: true, // Set to true on first login
+                                    examStartTime: nowAccess // Set examStartTime for first login
                                 };
                             } else {
                                 initialAccessCount = currentAccess.accessCount || 0; // Simpan jumlah akses saat ini
                                 currentAccess.accessCount = (currentAccess.accessCount || 0) + 1;
                                 currentAccess.lastAccessTimestamp = nowAccess;
-                                
-                                // Pastikan examStartTime selalu berupa timestamp numerik
-                                let existingExamStartTime = currentAccess.examStartTime;
-                                if (typeof existingExamStartTime !== 'number' || isNaN(existingExamStartTime)) {
-                                    // Jika nilai yang ada bukan angka atau NaN, coba konversi atau gunakan nowAccess
-                                    existingExamStartTime = Number(existingExamStartTime);
-                                    if (isNaN(existingExamStartTime) || existingExamStartTime <= 0) {
-                                        existingExamStartTime = nowAccess; // Fallback ke waktu saat ini jika konversi gagal
-                                        console.warn("DEBUG: Mengkonversi existingExamStartTime non-numerik ke timestamp. Original:", currentAccess.examStartTime, "Converted:", existingExamStartTime);
-                                    }
-                                }
-                                currentAccess.examStartTime = existingExamStartTime; // Simpan nilai yang sudah dipastikan numerik
-                                
-                                currentAccess.firstLoginTimestamp = currentAccess.firstLoginTimestamp || nowAccess; // Pertahankan atau atur
+                                currentAccess.isLoggedIn = true; // Set to true on subsequent login
+                                // Do NOT update currentAccess.examStartTime here, it should retain its initial value
                                 return currentAccess;
                             }
                         });
@@ -3080,9 +3119,9 @@
             overlayUnderstandBtn.addEventListener('click', hideOverlay);
             
             // Event listener for BACK button on submission confirmation overlay
-            backToLoginFromSubmissionBtn.addEventListener('click', () => {
+            backToLoginFromSubmissionBtn.addEventListener('click', async () => { // Made async
                 submissionConfirmationOverlay.style.opacity = 0;
-                setTimeout(() => {
+                setTimeout(async () => { // Made async
                     submissionConfirmationOverlay.style.display = 'none';
                     loginContainer.style.display = 'flex';
                     loginContainer.style.opacity = 1;
@@ -3093,6 +3132,20 @@
                     isInExamMode = false;
                     toggleExamSecurityFeatures(false);
                     message.textContent = ''; // Clear general message
+
+                    // Set isLoggedIn to false in Firebase when returning to login
+                    const tokenPrefix = foundTokenGlobal?.token;
+                    const studentId = selectedStudentData?.id ? padStudentId(selectedStudentData.id) : null;
+
+                    if (tokenPrefix && studentId) {
+                        const accessStatusRef = child(examAccessStatusRef, `${tokenPrefix}/${studentId}`);
+                        try {
+                            await update(accessStatusRef, { isLoggedIn: false });
+                            console.log("isLoggedIn set to false on return to login.");
+                        } catch (error) {
+                            console.error("Failed to set isLoggedIn to false:", error);
+                        }
+                    }
 
                     // Reset Class Dropdown
                     hiddenSelectKelas.value = '';
