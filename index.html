@@ -381,7 +381,7 @@
         .checkbox-container {
             display: flex;
             align-items: center;
-            justify-content: flex-start; /* Sejajarkan ke kiri */
+            justify-content: flex-start; /* Sejajakan ke kiri */
             margin-top: 15px;
             margin-bottom: 15px;
             font-size: 1em;
@@ -439,6 +439,30 @@
             justify-content: flex-start; /* Align items to the start (left) */
             flex-shrink: 0; /* Mencegah menyusut */
             gap: 10px; /* Space between timer, name, and class */
+        }
+
+        /* New styles for zoom buttons */
+        .zoom-btn {
+            padding: 2px 8px; /* Smaller padding */
+            font-size: 1.2em; /* Larger font for +/- */
+            width: auto; /* Auto width */
+            min-width: 30px; /* Minimum width */
+            height: 30px; /* Fixed height */
+            border-radius: 50%; /* Make them round */
+            background-color: rgba(255, 255, 255, 0.2); /* Slightly transparent white */
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none; /* Remove default button shadow */
+            margin: 0; /* Remove default button margin */
+        }
+
+        .zoom-btn:hover {
+            background-color: rgba(255, 255, 255, 0.4);
         }
 
         #examContentWrapper {
@@ -1035,6 +1059,17 @@
             }
         }
 
+        /* New style for the "pilihkelas" link */
+        .pilihkelas-link {
+            color: #007bff; /* Blue color */
+            text-decoration: none;
+            transition: text-decoration 0.3s ease;
+        }
+
+        .pilihkelas-link:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 600px) {
             .container {
                 margin-top: 40px;
@@ -1256,6 +1291,9 @@
             </div>
 
             <button id="loginBtn">Login</button>
+            <p class="mt-4 text-sm text-gray-600">
+                Ingin kembali ke pilihan kelas? <a href="https://smp2pajangan.github.io/uo" class="pilihkelas-link">pilihkelas</a>
+            </p>
         </div>
         <div class="footer">
             © Admin SMPN 2 Pajangan<br>
@@ -1265,6 +1303,10 @@
 
     <div id="examContainer" style="display: none;">
         <div id="countdownDisplay">
+            <div class="flex items-center gap-2">
+                <button id="zoomOutBtn" class="zoom-btn">-</button>
+                <button id="zoomInBtn" class="zoom-btn">+</button>
+            </div>
             <span id="timerText"></span> | <span id="studentNameDisplay"></span> | <span id="classDisplay"></span>
         </div>
         <div id="examContentWrapper">
@@ -1565,6 +1607,10 @@
         const MIN_ZOOM = 0.5;
         const MAX_ZOOM = 2.0;
         const ZOOM_STEP = 0.1;
+
+        // Point 4: Zoom buttons
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
 
 
         // --- Utility Functions ---
@@ -2481,9 +2527,12 @@
          * @param {number} examDurationMinutes - The exam duration in minutes.
          * @param {number} numQuestions - The total number of questions for this exam.
          * @param {Array<string>} [initialAnswers=null] - Optional: Array of pre-loaded answers.
+         * @param {string} tokenFirebaseKey - The Firebase key of the token.
+         * @param {string} studentId - The padded student ID.
+         * @param {string} studentFirebaseKey - The Firebase key of the student.
          * @returns {Promise<void>}
          */
-        async function handleLanjutClick(fullTokenId, examDurationMinutes, numQuestions, initialAnswers = null) {
+        async function handleLanjutClick(fullTokenId, examDurationMinutes, numQuestions, initialAnswers = null, tokenFirebaseKey, studentId, studentFirebaseKey) {
             if (!confirmCheckbox.checked) {
                 modalMessage.style.display = 'block';
                 modalMessage.textContent = "Anda harus mencentang 'Data di atas sudah benar' untuk melanjutkan.";
@@ -2492,11 +2541,10 @@
                 modalMessage.style.display = 'none';
             }
 
-            // No need for message.innerHTML = `Mencatat akses ujian... <span class="spinner"></span>`; here
             confirmModal.classList.remove('show');
             isAnyModalOpen = false;
 
-            if (!foundTokenGlobal || !selectedStudentData) {
+            if (!foundTokenGlobal || !selectedStudentData) { // These are global, should be fine
                 console.error("Error: Data ujian atau siswa tidak ditemukan untuk pengalihan (handleLanjutClick).");
                 message.style.color = "red";
                 message.textContent = "Terjadi kesalahan saat menyiapkan tautan ujian. Pastikan koneksi internet Anda stabil dan coba lagi.";
@@ -2506,16 +2554,83 @@
                 sessionStorage.clear();
                 return;
             }
-            
-            // Store exam details globally before showing overlay
-            globalExamUrl = foundTokenGlobal.googleDriveUrl;
-            globalExamDurationMinutes = examDurationMinutes;
-            globalNumQuestions = numQuestions;
-            // globalExamStartTime is already correctly set by cekToken from exam_access_status
-            // DO NOT OVERWRITE IT HERE: globalExamStartTime = new Date(foundTokenGlobal.startTime).getTime(); 
-            globalInitialAnswers = initialAnswers; // Ensure this is passed and stored
 
-            showOverlay(globalInitialAnswers); // Show overlay, which will call startExamProcess after dismissal
+            message.innerHTML = `Mencatat akses ujian... <span class="spinner"></span>`; // Add loading message here
+
+            try {
+                // Point 5: Pindahkan logika runTransaction ke sini
+                const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+                let examAccessDataAfterTransaction = await runTransaction(accessStatusRef, (currentAccess) => {
+                    const nowAccess = Date.now();
+                    if (currentAccess === null) {
+                        return {
+                            accessCount: 1,
+                            firstLoginTimestamp: nowAccess,
+                            lastAccessTimestamp: nowAccess,
+                            isLoggedIn: true, // Set to true on first login
+                            examStartTime: nowAccess // Set examStartTime for first login
+                        };
+                    } else {
+                        currentAccess.accessCount = (currentAccess.accessCount || 0) + 1;
+                        currentAccess.lastAccessTimestamp = nowAccess;
+                        currentAccess.isLoggedIn = true;
+
+                        // For force active tokens, ensure examStartTime is valid and, if it's the first time
+                        // this specific student logs in with this force-active token, or if the stored
+                        // examStartTime is invalid/missing, re-initialize it to nowAccess.
+                        if (foundTokenGlobal.isForceActive && (!currentAccess.examStartTime || isNaN(currentAccess.examStartTime) || currentAccess.examStartTime <= 0)) {
+                            currentAccess.examStartTime = nowAccess;
+                            console.warn("Force active token: examStartTime was invalid/missing, re-initializing to current time.");
+                        }
+                        return currentAccess;
+                    }
+                });
+
+                if (examAccessDataAfterTransaction.committed) {
+                    console.log(`Access to token ${tokenFirebaseKey} by student ${studentId} successfully updated. New accessCount: ${examAccessDataAfterTransaction.snapshot.val().accessCount}`);
+                    
+                    // Synchronize isLoggedIn status in students node
+                    if (studentFirebaseKey) {
+                        const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
+                        await set(studentIsLoggedInRef, true); // Set to true
+                        console.log(`Student ${studentId} isLoggedIn status in students node set to true.`);
+                    } else {
+                        console.warn(`Could not find Firebase key for student ${studentId} to update isLoggedIn status in students node.`);
+                    }
+
+                    // Set globalExamStartTime from the transaction result
+                    globalExamStartTime = Number(examAccessDataAfterTransaction.snapshot.val().examStartTime);
+                    if (isNaN(globalExamStartTime) || globalExamStartTime <= 0) {
+                        console.error("Critical Error: globalExamStartTime tidak valid setelah transaksi. Menggunakan Date.now() sebagai fallback. Original value:", examAccessDataAfterTransaction.snapshot.val().examStartTime);
+                        globalExamStartTime = Date.now();
+                    }
+                    console.log("DEBUG: final globalExamStartTime value (from transaction):", globalExamStartTime);
+
+                    // Now show overlay, which will then call startExamProcess
+                    showOverlay(initialAnswers);
+                    message.textContent = ""; // Clear loading message
+                    loginBtn.disabled = false; // Re-enable login button
+                    loginBtn.style.opacity = 1;
+
+                } else {
+                    console.warn("Transaction for exam access status was aborted.");
+                    message.style.color = "orange";
+                    message.textContent = "Gagal mencatat akses ujian. Silakan coba lagi.";
+                    updateLoginButtonStatus();
+                    loginContainer.style.display = 'flex';
+                    examContainer.style.display = 'none';
+                    sessionStorage.clear();
+                }
+
+            } catch (err) {
+                console.error("Error in handleLanjutClick (during exam access transaction):", err);
+                message.style.color = "red";
+                message.textContent = "Terjadi kesalahan saat mencatat akses ujian. Silakan coba lagi atau hubungi administrator.";
+                updateLoginButtonStatus();
+                loginContainer.style.display = 'flex';
+                examContainer.style.display = 'none';
+                sessionStorage.clear();
+            }
         }
 
         // --- Answer Sidebar and Submission Logic ---
@@ -2535,6 +2650,10 @@
                 examContentWrapper.classList.remove('sidebar-open');
                 // sidebarToggle (green button) will be shown by CSS rule
                 // closeSidebarButton (red button) will be hidden by CSS rule
+            }
+            // Point 2: Sembunyikan pesan peringatan ketika sidebar ditutup
+            if (!examContentWrapper.classList.contains('sidebar-open')) {
+                submissionWarningMessage.textContent = '';
             }
         }
 
@@ -2887,18 +3006,6 @@
                 message.innerHTML = `Memproses data... <span class="spinner"></span>`;
 
                 try {
-                    // --- Pre-login check for submitted exams ---
-                    // This check needs the Firebase key of the token, so we'll move it after finding the token
-                    // const hasSubmittedSnapshot = await get(child(submittedExamsRef, `${tokenPrefix}/${studentId}`));
-                    // if (hasSubmittedSnapshot.exists() && hasSubmittedSnapshot.val().isSubmitted === true) {
-                    //     message.style.color = "red";
-                    //     message.textContent = "Anda sudah menyelesaikan ujian ini dan tidak dapat login kembali.";
-                    //     updateLoginButtonStatus();
-                    //     sessionStorage.clear(); // Clear session storage as exam is already submitted
-                    //     return;
-                    // }
-                    // --- End Pre-login check ---
-
                     const tokensSnapshot = await get(tokensRef);
                     let foundToken = null;
 
@@ -3021,121 +3128,47 @@
                     }
                     // --- End Always load student answers from Firebase ---
 
-                    let initialAccessCount = 0; // To store accessCount before transaction
-                    let examAccessDataAfterTransaction = null; // To store the result of the transaction
+                    // Determine if this is a "first login" based on existing accessCount
+                    let initialAccessCount = 0;
+                    if (accessStatusSnapshot.exists()) {
+                        initialAccessCount = accessStatusSnapshot.val().accessCount || 0;
+                    }
 
-                    try {
-                        // Perform the transaction to update exam_access_status for ALL logins
-                        // Use foundTokenGlobal.key for exam_access_status path
-                        examAccessDataAfterTransaction = await runTransaction(accessStatusRef, (currentAccess) => {
-                            const nowAccess = Date.now();
-                            if (currentAccess === null) {
-                                initialAccessCount = 0; // Ini adalah akses pertama
-                                return {
-                                    accessCount: 1,
-                                    firstLoginTimestamp: nowAccess,
-                                    lastAccessTimestamp: nowAccess,
-                                    isLoggedIn: true, // Set to true on first login
-                                    examStartTime: nowAccess // Set examStartTime for first login
-                                };
-                            } else {
-                                initialAccessCount = currentAccess.accessCount || 0; // Simpan jumlah akses saat ini
-                                currentAccess.accessCount = (currentAccess.accessCount || 0) + 1;
-                                currentAccess.lastAccessTimestamp = nowAccess;
-                                currentAccess.isLoggedIn = true;
-
-                                // *** START MODIFICATION FOR FORCE ACTIVE TOKEN EXAM START TIME ***
-                                // For force active tokens, ensure examStartTime is valid and, if it's the first time
-                                // this specific student logs in with this force-active token, or if the stored
-                                // examStartTime is invalid/missing, re-initialize it to nowAccess.
-                                // This ensures the timer starts fresh for remedial students.
-                                if (foundTokenGlobal.isForceActive && (!currentAccess.examStartTime || isNaN(currentAccess.examStartTime) || currentAccess.examStartTime <= 0)) {
-                                    currentAccess.examStartTime = nowAccess;
-                                    console.warn("Force active token: examStartTime was invalid/missing, re-initializing to current time.");
-                                }
-                                // *** END MODIFICATION ***
-                                
-                                // Otherwise, retain existing examStartTime (for both force active and regular tokens)
-                                return currentAccess;
-                            }
-                        });
-
-                        if (examAccessDataAfterTransaction.committed) {
-                            console.log(`Access to token ${foundToken.key} by student ${selectedStudentData.id} successfully updated. New accessCount: ${examAccessDataAfterTransaction.snapshot.val().accessCount}`);
-                            
-                            // *** START NEW: Synchronize isLoggedIn status in students node ***
-                            const studentFirebaseKey = selectedStudentData.key; // Get student's Firebase key
-                            if (studentFirebaseKey) {
-                                const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
-                                await set(studentIsLoggedInRef, true); // Set to true
-                                console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to true.`);
-                            } else {
-                                console.warn(`Could not find Firebase key for student ${selectedStudentData.id} to update isLoggedIn status in students node.`);
-                            }
-                            // *** END NEW ***
-
+                    // If it's not the first login (initialAccessCount >= 1), directly start exam
+                    if (initialAccessCount >= 1) {
+                        message.innerHTML = `Melanjutkan ujian... <span class="spinner"></span>`;
+                        // We need to fetch the examStartTime from Firebase if it's a continuing session
+                        let currentExamStartTime = 0;
+                        if (accessStatusSnapshot.exists() && accessStatusSnapshot.val().examStartTime) {
+                            currentExamStartTime = Number(accessStatusSnapshot.val().examStartTime);
                         } else {
-                            console.warn("Transaction for exam access status was aborted.");
-                            message.style.color = "orange";
-                            message.textContent = "Gagal mencatat akses ujian. Silakan coba lagi.";
-                            updateLoginButtonStatus();
-                            return; // Abort login if transaction failed
+                            // Fallback, though ideally examStartTime should exist for subsequent logins
+                            currentExamStartTime = Date.now();
+                            console.warn("Continuing session but examStartTime missing/invalid in Firebase. Using current time.");
                         }
 
-                        // Set global variables before starting the exam process or showing modal
-                        globalExamUrl = foundToken.googleDriveUrl;
-                        globalExamDurationMinutes = examDurationMinutes; // Use the value from Firebase
-                        globalNumQuestions = numQuestions;
-                        // Gunakan timestamp waktu mulai ujian siswa yang sebenarnya dari hasil transaksi
-                        // Pastikan untuk mengonversi ke Number secara eksplisit dan tambahkan log debug
-                        console.log("DEBUG: examAccessDataAfterTransaction snapshot val:", examAccessDataAfterTransaction.snapshot.val());
-                        console.log("DEBUG: raw examAccessDataAfterTransaction.snapshot.val().examStartTime type:", typeof examAccessDataAfterTransaction.snapshot.val().examStartTime);
-                        console.log("DEBUG: raw examAccessDataAfterTransaction.snapshot.val().examStartTime value:", examAccessDataAfterTransaction.snapshot.val().examStartTime);
+                        startExamProcess(foundTokenGlobal.googleDriveUrl, examDurationMinutes, numQuestions, currentExamStartTime, loadedAnswers);
+                        message.textContent = "";
+                        loginBtn.disabled = false;
+                        loginBtn.style.opacity = 1;
 
-                        globalExamStartTime = Number(examAccessDataAfterTransaction.snapshot.val().examStartTime); // Konversi eksplisit ke number
-                        
-                        // Tambahkan pengaman di sini:
-                        if (isNaN(globalExamStartTime) || globalExamStartTime <= 0) { // Periksa untuk NaN dan nilai non-positif
-                            console.error("Critical Error: globalExamStartTime tidak valid setelah transaksi. Menggunakan Date.now() sebagai fallback. Original value:", examAccessDataAfterTransaction.snapshot.val().examStartTime);
-                            globalExamStartTime = Date.now(); // Fallback ke waktu saat ini jika ada yang salah
-                        }
-                        console.log("DEBUG: final globalExamStartTime value:", globalExamStartTime);
+                    } else { // First login, show confirmation modal
+                        document.getElementById("modalIdSiswa").textContent = selectedStudentData.id || "-";
+                        document.getElementById("modalNamaLengkap").textContent = selectedStudentData.name || "-";
+                        document.getElementById("modalKelas").textContent = selectedClass || "-";
+                        document.getElementById("modalMapel").textContent = foundToken.subject || "-";
+                        modalExamDuration.textContent = `${examDurationMinutes} Menit`;
 
+                        confirmCheckbox.checked = false;
+                        modalMessage.style.display = 'none';
+                        modalMessage.textContent = '';
 
-                        // Now, use initialAccessCount to decide whether to show modal or directly start exam
-                        if (initialAccessCount >= 1) { // Jika sudah login setidaknya sekali sebelum transaksi ini
-                            message.innerHTML = `Melanjutkan ujian... <span class="spinner"></span>`;
-                            // Mulai ujian secara langsung dengan jawaban yang dimuat, lewati modal konfirmasi
-                            startExamProcess(globalExamUrl, globalExamDurationMinutes, globalNumQuestions, globalExamStartTime, loadedAnswers);
-                            message.textContent = "";
-                            loginBtn.disabled = false;
-                            loginBtn.style.opacity = 1;
+                        confirmModal.classList.add('show');
+                        isAnyModalOpen = true;
+                        message.textContent = "";
 
-                        } else { // Login pertama (initialAccessCount adalah 0)
-                            document.getElementById("modalIdSiswa").textContent = selectedStudentData.id || "-";
-                            document.getElementById("modalNamaLengkap").textContent = selectedStudentData.name || "-";
-                            document.getElementById("modalKelas").textContent = selectedClass || "-"; // Gunakan selectedClass
-                            document.getElementById("modalMapel").textContent = foundToken.subject || "-";
-                            modalExamDuration.textContent = `${examDurationMinutes} Menit`; // Tampilkan durasi baru
-
-                            confirmCheckbox.checked = false;
-                            modalMessage.style.display = 'none';
-                            modalMessage.textContent = '';
-
-                            confirmModal.classList.add('show');
-                            isAnyModalOpen = true;
-                            message.textContent = "";
-
-                            // handleLanjutClick sekarang hanya perlu menangani modal dan memanggil showOverlay
-                            document.getElementById("btnLanjut").onclick = () => handleLanjutClick(fullInputToken, examDurationMinutes, numQuestions, loadedAnswers);
-                        }
-
-                    } catch (err) {
-                        console.error("Error in cekToken (during exam access transaction):", err);
-                        message.style.color = "red";
-                        message.textContent = "Terjadi kesalahan saat memverifikasi token. Silakan coba lagi atau hubungi administrator.";
-                        if (tokenInputGroup) tokenInputGroup.classList.add('is-invalid');
-                        updateLoginButtonStatus();
+                        // Point 5: Set onclick for btnLanjut to trigger the transaction and then start exam
+                        document.getElementById("btnLanjut").onclick = () => handleLanjutClick(fullInputToken, examDurationMinutes, numQuestions, loadedAnswers, foundTokenGlobal.key, studentId, selectedStudentData.key);
                     }
 
                 } catch (err) {
@@ -3189,11 +3222,18 @@
             // Event listener for initial instruction overlay
             overlayUnderstandBtn.addEventListener('click', hideOverlay);
             
-            // Event listener for BACK button on submission confirmation overlay
+            // Point 6: Event listener for BACK button on submission confirmation overlay
             backToLoginFromSubmissionBtn.addEventListener('click', async () => { // Made async
                 submissionConfirmationOverlay.style.opacity = 0;
                 setTimeout(async () => { // Made async
                     submissionConfirmationOverlay.style.display = 'none';
+                    // Redirect to the specified URL
+                    window.location.href = 'https://smp2pajangan.github.io/uo'; 
+
+                    // The rest of the reset logic might not be strictly necessary if redirecting,
+                    // but it's good practice to keep the app state clean before leaving.
+                    // However, if the redirect happens immediately, the following code might not execute.
+                    // I'll keep it for robustness in case of redirect issues or future changes.
                     loginContainer.style.display = 'flex';
                     loginContainer.style.opacity = 1;
                     document.body.style.overflow = '';
@@ -3204,11 +3244,9 @@
                     toggleExamSecurityFeatures(false);
                     message.textContent = ''; // Clear general message
 
-                    // Set isLoggedIn to false in Firebase when returning to login
-                    // Use foundTokenGlobal.key for exam_access_status path
-                    const tokenFirebaseKey = foundTokenGlobal?.key; // Use the Firebase-generated key for the token
+                    const tokenFirebaseKey = foundTokenGlobal?.key;
                     const studentId = selectedStudentData?.id ? padStudentId(selectedStudentData.id) : null;
-                    const studentFirebaseKey = selectedStudentData?.key; // Get student's Firebase key
+                    const studentFirebaseKey = selectedStudentData?.key;
 
                     if (tokenFirebaseKey && studentId && studentFirebaseKey) {
                         const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
@@ -3216,51 +3254,44 @@
                         try {
                             await update(accessStatusRef, { isLoggedIn: false });
                             console.log("isLoggedIn set to false in exam_access_status on return to login.");
-
-                            await set(studentIsLoggedInRef, false); // Set to false in students node
+                            await set(studentIsLoggedInRef, false);
                             console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on return to login.`);
-
                         } catch (error) {
                             console.error("Failed to set isLoggedIn to false:", error);
                         }
                     }
 
-                    // Reset Class Dropdown
+                    // Reset Class Dropdown etc. (These will be cleared by the page reload after redirect)
+                    // Leaving them here for logical completeness, but they won't visually apply before redirect.
                     hiddenSelectKelas.value = '';
                     customSelectKelasDisplay.textContent = customSelectKelasDisplay.dataset.placeholder;
                     customSelectKelasDisplay.classList.remove('selected');
-                    customSelectKelasDisplay.classList.remove('disabled'); // Ensure it's enabled for selection
+                    customSelectKelasDisplay.classList.remove('disabled');
 
-                    // Reset Student Name Dropdown
                     hiddenSelectNamaSiswa.value = '';
                     customSelectNamaSiswaDisplay.textContent = customSelectNamaSiswaDisplay.dataset.placeholder;
                     customSelectNamaSiswaDisplay.classList.remove('selected');
-                    customSelectNamaSiswaDisplay.classList.add('disabled'); // Disable until class is selected
-                    selectedStudentData = null; // Clear selected student data
+                    customSelectNamaSiswaDisplay.classList.add('disabled');
+                    selectedStudentData = null;
 
-                    // Reset Token Prefix Input
                     inputTokenPrefix.value = '';
-                    inputTokenPrefix.disabled = true; // Disable until class/student selected
+                    inputTokenPrefix.disabled = true;
                     const tokenInputGroup = inputTokenPrefix.closest('.token-input-group');
                     if (tokenInputGroup) {
                         tokenInputGroup.classList.remove('is-valid', 'is-invalid');
                     }
 
-                    // Reset Display Student ID Input
                     displayStudentId.value = '';
 
-                    // Reset location status display
-                    locationBlockedDiv.style.display = 'none'; // Hide location blocked message
-                    locationStatus.style.display = 'block'; // Show location status text
-                    locationStatus.textContent = 'Memuat status lokasi...'; // Reset text
-                    isLocationValid = false; // Reset location validity
+                    locationBlockedDiv.style.display = 'none';
+                    locationStatus.style.display = 'block';
+                    locationStatus.textContent = 'Memuat status lokasi...';
+                    isLocationValid = false;
 
-                    // Re-run location check to get fresh status
-                    getLocation(); // This will update locationStatus and isLocationValid
-
-                    updateLoginButtonStatus(); // Update login button based on new state
-                    sessionStorage.clear(); // Clear session storage
-                    isAnyModalOpen = false; // Set modal status
+                    getLocation();
+                    updateLoginButtonStatus();
+                    sessionStorage.clear();
+                    isAnyModalOpen = false;
                 }, 300);
             });
 
@@ -3294,10 +3325,14 @@
                 }
             });
 
-            // Mencegah klik di dalam kotak `answerOptions` agar tidak menutup modal
+            // Point 3: Mencegah klik di dalam kotak `answerOptions` agar tidak menutup modal
             // Ini penting karena answerOptions adalah anak dari modal-content, yang merupakan anak dari answerSelectionModal
             answerOptionsContainer.addEventListener('click', (event) => {
                 event.stopPropagation(); // Menghentikan event click agar tidak merambat ke parent (answerSelectionModal)
+            });
+            // Point 3: Menghentikan propagasi klik pada seluruh modal-content dari answerSelectionModal
+            answerSelectionModal.querySelector('.modal-content').addEventListener('click', (event) => {
+                event.stopPropagation();
             });
             // --- Akhir logika penutupan otomatis ---
 
@@ -3327,6 +3362,19 @@
                     examIframe.style.transform = `scale(${currentZoom})`;
                 }
             }, { passive: false }); // Gunakan passive: false untuk mengizinkan preventDefault
+
+            // Point 4: Event listeners for zoom buttons
+            zoomInBtn.addEventListener('click', () => {
+                currentZoom += ZOOM_STEP;
+                currentZoom = Math.min(MAX_ZOOM, currentZoom);
+                examIframe.style.transform = `scale(${currentZoom})`;
+            });
+
+            zoomOutBtn.addEventListener('click', () => {
+                currentZoom -= ZOOM_STEP;
+                currentZoom = Math.max(MIN_ZOOM, currentZoom);
+                examIframe.style.transform = `scale(${currentZoom})`;
+            });
 
 
             updateDateTime();
