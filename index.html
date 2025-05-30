@@ -1701,14 +1701,35 @@
          * Hides the confirmation modal and resets the UI.
          * @returns {void}
          */
-        window.tutupModal = function () {
+        window.tutupModal = async function () { // Make it async
             confirmModal.classList.remove('show');
             isAnyModalOpen = false; // Set modal status
             message.textContent = "";
             modalMessage.textContent = "";
             confirmCheckbox.checked = false;
             updateLoginButtonStatus();
-            sessionStorage.clear(); // Clear session storage if user cancels login
+
+            // NEW: Set isLoggedIn to false in Firebase if a token and student were selected
+            if (foundTokenGlobal && selectedStudentData) {
+                const tokenFirebaseKey = foundTokenGlobal.key;
+                const studentId = padStudentId(selectedStudentData.id);
+                const studentFirebaseKey = selectedStudentData.key;
+
+                try {
+                    const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+                    await update(accessStatusRef, { isLoggedIn: false });
+                    console.log("isLoggedIn set to false in exam_access_status on modal cancel.");
+
+                    if (studentFirebaseKey) {
+                        const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
+                        await set(studentIsLoggedInRef, false);
+                        console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on modal cancel.`);
+                    }
+                } catch (error) {
+                    console.error("Failed to set isLoggedIn to false on modal cancel:", error);
+                }
+            }
+            sessionStorage.clear(); // Clear session storage
         };
 
         // --- Location Handling ---
