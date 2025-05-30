@@ -1416,6 +1416,8 @@
         import { getDatabase, ref, get, child, runTransaction, set, onValue, off, update } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
         // Firebase configuration (MATCHING ADMIN PANEL)
+        // As per user's request, this page will only use firebaseConfig7.
+        // Ensure your admin panel also uses this same configuration for synchronized data.
         const firebaseConfig = {
             apiKey: "AIzaSyCII45EsItVdjv3zHSL5CaBQ4nF45z4IuM",
             authDomain: "ujiankupdf.firebaseapp.com",
@@ -1827,7 +1829,12 @@
             try {
                 const snapshot = await get(studentsRef);
                 if (snapshot.exists()) {
-                    allStudentsData = Object.values(snapshot.val());
+                    // Store students with their Firebase keys
+                    allStudentsData = [];
+                    snapshot.forEach(childSnapshot => {
+                        allStudentsData.push({ ...childSnapshot.val(), key: childSnapshot.key });
+                    });
+
                     const classes = new Set();
                     allStudentsData.forEach(student => {
                         if (student.class) {
@@ -1962,6 +1969,7 @@
             hiddenSelectNamaSiswa.value = studentId;
             customSelectNamaSiswaDisplay.textContent = studentName;
             customSelectNamaSiswaDisplay.classList.add('selected');
+            // Find the full student data including the Firebase key
             selectedStudentData = allStudentsData.find(student => padStudentId(student.id) === padStudentId(studentId)); // Ensure padded comparison
             displayStudentId.value = padStudentId(studentId); // Auto-fill and pad student ID
             closeStudentModal();
@@ -2120,13 +2128,20 @@
                 backToLoginFromSubmissionBtn.innerText = 'KEMBALI'; // Ensure button text is consistent
 
                 // Set isLoggedIn to false in Firebase
-                const tokenPrefix = foundTokenGlobal?.token;
+                const tokenFirebaseKey = foundTokenGlobal?.key; // Use the Firebase-generated key for the token
                 const studentId = selectedStudentData?.id ? padStudentId(selectedStudentData.id) : null;
-                if (tokenPrefix && studentId) {
-                    const accessStatusRef = child(examAccessStatusRef, `${tokenPrefix}/${studentId}`);
+                const studentFirebaseKey = selectedStudentData?.key; // Get student's Firebase key
+
+                if (tokenFirebaseKey && studentId && studentFirebaseKey) {
+                    const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+                    const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
                     try {
                         await update(accessStatusRef, { isLoggedIn: false });
-                        console.log("isLoggedIn set to false on submission.");
+                        console.log("isLoggedIn set to false in exam_access_status on submission.");
+
+                        await set(studentIsLoggedInRef, false); // Set to false in students node
+                        console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on submission.`);
+
                     } catch (error) {
                         console.error("Failed to set isLoggedIn to false on submission:", error);
                     }
@@ -2250,12 +2265,12 @@
                 return;
             }
 
-            // The full token (e.g., ABCDE-001) is stored in foundTokenGlobal.token
-            const tokenPrefix = foundTokenGlobal.token; // Use the base token
-            const studentId = padStudentId(selectedStudentData.id); // Use the padded student ID
+            // Use the Firebase-generated key for the token
+            const tokenFirebaseKey = foundTokenGlobal.key; 
+            const studentId = padStudentId(selectedStudentData.id); 
             
             // Get reference to specific student path in submitted_exams
-            const studentSubmissionRef = child(submittedExamsRef, `${tokenPrefix}/${studentId}`);
+            const studentSubmissionRef = child(submittedExamsRef, `${tokenFirebaseKey}/${studentId}`);
 
             // Ensure previous listener is detached before attaching a new one
             if (submissionListenerRef) {
@@ -2391,9 +2406,9 @@
                     totalQuestions = storedTotalQuestions; // Restore totalQuestions
                     
                     // --- Load answers from Firebase ---
-                    const tokenKey = foundTokenGlobal.key;
+                    const tokenFirebaseKey = foundTokenGlobal.key; // Use the Firebase key
                     const studentId = padStudentId(selectedStudentData.id);
-                    const studentAnswersPath = child(studentAnswersRef, `${tokenKey}/${studentId}`);
+                    const studentAnswersPath = child(studentAnswersRef, `${tokenFirebaseKey}/${studentId}`);
                     console.log("Restore State: Attempting to load answers from path:", studentAnswersPath.toString());
                     let loadedAnswers = Array(totalQuestions).fill(''); // Default empty array
 
@@ -2655,9 +2670,9 @@
                 return;
             }
 
-            const tokenKey = foundTokenGlobal.key; // Use the Firebase-generated key for the token
+            const tokenFirebaseKey = foundTokenGlobal.key; // Use the Firebase-generated key for the token
             const studentId = padStudentId(selectedStudentData.id);
-            const studentAnswersPath = child(studentAnswersRef, `${tokenKey}/${studentId}`);
+            const studentAnswersPath = child(studentAnswersRef, `${tokenFirebaseKey}/${studentId}`);
 
             try {
                 await set(studentAnswersPath, {
@@ -2711,17 +2726,32 @@
             submitAnswersButton.textContent = 'Mengirim Jawaban...';
             submitAnswersButton.style.backgroundColor = '#cccccc'; // Ubah warna jadi abu-abu saat mengirim
 
-            const tokenPrefix = foundTokenGlobal.token;
+            const tokenFirebaseKey = foundTokenGlobal.key; // Use the Firebase-generated key for the token
             const studentId = padStudentId(selectedStudentData.id);
+            const studentFirebaseKey = selectedStudentData.key; // Get student's Firebase key
 
             try {
                 // 1. Simpan string jawaban (final save)
                 await saveStudentAnswersToFirebase(); // Ensure latest answers are saved
 
-                // 2. Tandai ujian sebagai sudah dikirim
-                const submittedExamPath = child(submittedExamsRef, `${tokenPrefix}/${studentId}`);
+                // 2. Tandai ujian sebagai sudah dikirim di exam_access_status
+                const submittedExamPath = child(submittedExamsRef, `${tokenFirebaseKey}/${studentId}`);
                 await set(submittedExamPath, { isSubmitted: true, timestamp: Date.now() });
-                console.log("Status ujian berhasil diperbarui menjadi submitted.");
+                console.log("Status ujian berhasil diperbarui menjadi submitted di submitted_exams.");
+
+                // 3. Set isLoggedIn to false in exam_access_status
+                const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+                await update(accessStatusRef, { isLoggedIn: false });
+                console.log("isLoggedIn set to false in exam_access_status on submission.");
+
+                // 4. Set isLoggedIn to false in students node
+                if (studentFirebaseKey) {
+                    const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
+                    await set(studentIsLoggedInRef, false); // Set to false
+                    console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on submission.`);
+                } else {
+                    console.warn(`Could not find Firebase key for student ${selectedStudentData.id} to update isLoggedIn status in students node.`);
+                }
 
                 showSubmissionConfirmationOverlay(isAutoSubmit); // Tampilkan overlay konfirmasi sukses, passing isAutoSubmit
 
@@ -2858,14 +2888,15 @@
 
                 try {
                     // --- Pre-login check for submitted exams ---
-                    const hasSubmittedSnapshot = await get(child(submittedExamsRef, `${tokenPrefix}/${studentId}`));
-                    if (hasSubmittedSnapshot.exists() && hasSubmittedSnapshot.val().isSubmitted === true) {
-                        message.style.color = "red";
-                        message.textContent = "Anda sudah menyelesaikan ujian ini dan tidak dapat login kembali.";
-                        updateLoginButtonStatus();
-                        sessionStorage.clear(); // Clear session storage as exam is already submitted
-                        return;
-                    }
+                    // This check needs the Firebase key of the token, so we'll move it after finding the token
+                    // const hasSubmittedSnapshot = await get(child(submittedExamsRef, `${tokenPrefix}/${studentId}`));
+                    // if (hasSubmittedSnapshot.exists() && hasSubmittedSnapshot.val().isSubmitted === true) {
+                    //     message.style.color = "red";
+                    //     message.textContent = "Anda sudah menyelesaikan ujian ini dan tidak dapat login kembali.";
+                    //     updateLoginButtonStatus();
+                    //     sessionStorage.clear(); // Clear session storage as exam is already submitted
+                    //     return;
+                    // }
                     // --- End Pre-login check ---
 
                     const tokensSnapshot = await get(tokensRef);
@@ -2874,7 +2905,7 @@
                     tokensSnapshot.forEach(child => {
                         const data = child.val();
                         if (data.token.toUpperCase() === tokenPrefix) { // Match with token prefix
-                            foundToken = { ...data, key: child.key };
+                            foundToken = { ...data, key: child.key }; // Store Firebase key of the token
                             return true;
                         }
                     });
@@ -2888,10 +2919,24 @@
                     }
 
                     foundTokenGlobal = foundToken; // Store globally
+
+                    // --- NOW perform pre-login check for submitted exams using the token's Firebase key ---
+                    const hasSubmittedSnapshot = await get(child(submittedExamsRef, `${foundTokenGlobal.key}/${studentId}`));
+                    if (hasSubmittedSnapshot.exists() && hasSubmittedSnapshot.val().isSubmitted === true) {
+                        message.style.color = "red";
+                        message.textContent = "Anda sudah menyelesaikan ujian ini dan tidak dapat login kembali.";
+                        updateLoginButtonStatus();
+                        sessionStorage.clear(); // Clear session storage as exam is already submitted
+                        return;
+                    }
+                    // --- End NOW perform pre-login check ---
+
+
                     console.log("cekToken: foundToken.answerKey is:", foundToken.answerKey);
 
                     // --- NEW: Check isLoggedIn status before proceeding ---
-                    const accessStatusRef = child(examAccessStatusRef, `${tokenPrefix}/${studentId}`);
+                    // Use foundTokenGlobal.key for exam_access_status path
+                    const accessStatusRef = child(examAccessStatusRef, `${foundTokenGlobal.key}/${studentId}`);
                     const accessStatusSnapshot = await get(accessStatusRef);
 
                     if (accessStatusSnapshot.exists()) {
@@ -2963,7 +3008,8 @@
 
                     // --- Always load student answers from Firebase here ---
                     message.innerHTML = `Memuat jawaban siswa... <span class="spinner"></span>`;
-                    const studentAnswersPath = child(studentAnswersRef, `${foundToken.key}/${selectedStudentData.id}`);
+                    // Use foundTokenGlobal.key for student_answers path
+                    const studentAnswersPath = child(studentAnswersRef, `${foundTokenGlobal.key}/${selectedStudentData.id}`);
                     const answersSnapshot = await get(studentAnswersPath);
                     let loadedAnswers = Array(numQuestions).fill(''); // Default empty
                     if (answersSnapshot.exists()) {
@@ -2980,6 +3026,7 @@
 
                     try {
                         // Perform the transaction to update exam_access_status for ALL logins
+                        // Use foundTokenGlobal.key for exam_access_status path
                         examAccessDataAfterTransaction = await runTransaction(accessStatusRef, (currentAccess) => {
                             const nowAccess = Date.now();
                             if (currentAccess === null) {
@@ -2995,14 +3042,38 @@
                                 initialAccessCount = currentAccess.accessCount || 0; // Simpan jumlah akses saat ini
                                 currentAccess.accessCount = (currentAccess.accessCount || 0) + 1;
                                 currentAccess.lastAccessTimestamp = nowAccess;
-                                currentAccess.isLoggedIn = true; // Set to true on subsequent login
-                                // Do NOT update currentAccess.examStartTime here, it should retain its initial value
+                                currentAccess.isLoggedIn = true;
+
+                                // *** START MODIFICATION FOR FORCE ACTIVE TOKEN EXAM START TIME ***
+                                // For force active tokens, ensure examStartTime is valid and, if it's the first time
+                                // this specific student logs in with this force-active token, or if the stored
+                                // examStartTime is invalid/missing, re-initialize it to nowAccess.
+                                // This ensures the timer starts fresh for remedial students.
+                                if (foundTokenGlobal.isForceActive && (!currentAccess.examStartTime || isNaN(currentAccess.examStartTime) || currentAccess.examStartTime <= 0)) {
+                                    currentAccess.examStartTime = nowAccess;
+                                    console.warn("Force active token: examStartTime was invalid/missing, re-initializing to current time.");
+                                }
+                                // *** END MODIFICATION ***
+                                
+                                // Otherwise, retain existing examStartTime (for both force active and regular tokens)
                                 return currentAccess;
                             }
                         });
 
                         if (examAccessDataAfterTransaction.committed) {
                             console.log(`Access to token ${foundToken.key} by student ${selectedStudentData.id} successfully updated. New accessCount: ${examAccessDataAfterTransaction.snapshot.val().accessCount}`);
+                            
+                            // *** START NEW: Synchronize isLoggedIn status in students node ***
+                            const studentFirebaseKey = selectedStudentData.key; // Get student's Firebase key
+                            if (studentFirebaseKey) {
+                                const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
+                                await set(studentIsLoggedInRef, true); // Set to true
+                                console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to true.`);
+                            } else {
+                                console.warn(`Could not find Firebase key for student ${selectedStudentData.id} to update isLoggedIn status in students node.`);
+                            }
+                            // *** END NEW ***
+
                         } else {
                             console.warn("Transaction for exam access status was aborted.");
                             message.style.color = "orange";
@@ -3134,14 +3205,21 @@
                     message.textContent = ''; // Clear general message
 
                     // Set isLoggedIn to false in Firebase when returning to login
-                    const tokenPrefix = foundTokenGlobal?.token;
+                    // Use foundTokenGlobal.key for exam_access_status path
+                    const tokenFirebaseKey = foundTokenGlobal?.key; // Use the Firebase-generated key for the token
                     const studentId = selectedStudentData?.id ? padStudentId(selectedStudentData.id) : null;
+                    const studentFirebaseKey = selectedStudentData?.key; // Get student's Firebase key
 
-                    if (tokenPrefix && studentId) {
-                        const accessStatusRef = child(examAccessStatusRef, `${tokenPrefix}/${studentId}`);
+                    if (tokenFirebaseKey && studentId && studentFirebaseKey) {
+                        const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+                        const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
                         try {
                             await update(accessStatusRef, { isLoggedIn: false });
-                            console.log("isLoggedIn set to false on return to login.");
+                            console.log("isLoggedIn set to false in exam_access_status on return to login.");
+
+                            await set(studentIsLoggedInRef, false); // Set to false in students node
+                            console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on return to login.`);
+
                         } catch (error) {
                             console.error("Failed to set isLoggedIn to false:", error);
                         }
