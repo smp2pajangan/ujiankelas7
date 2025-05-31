@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0" />
     <title>Login Ujian Siswa</title>
     <style>
+        html, body {
+            height: 100%; /* Memastikan html dan body mengambil tinggi penuh untuk fixed positioning */
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: 'Inter', Arial, sans-serif; /* Menggunakan font Inter */
             background-color: #e0e0e0;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1),
                         inset 0 -2px 4px rgba(255,255,255,0.7);
-            margin: 0;
-            padding: 0; /* Hapus padding body agar iframe bisa fullscreen */
             text-align: center;
             display: flex;
             justify-content: center;
@@ -432,20 +437,34 @@
             background-color: #0066cc;
             color: white;
             padding: 10px;
-            font-size: 1.5em;
+            font-size: 1.5em; /* Default font size */
             font-weight: bold;
             display: flex; /* Use flexbox for alignment */
             align-items: center; /* Vertically center items */
             justify-content: flex-start; /* Align items to the start (left) */
             flex-shrink: 0; /* Mencegah menyusut */
             gap: 10px; /* Space between timer, name, and class */
+            overflow: hidden; /* Prevent content from overflowing */
+        }
+
+        #countdownDisplay #timerText {
+            flex-shrink: 0; /* Prevent timer from shrinking */
+        }
+
+        #countdownDisplay #studentNameDisplay,
+        #countdownDisplay #classDisplay {
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden; /* Hide overflow */
+            text-overflow: ellipsis; /* Show ellipsis for truncated text */
+            flex-grow: 1; /* Allow name/class to take available space */
+            min-width: 0; /* Allow shrinking */
         }
 
         #examContentWrapper {
             display: flex;
             flex-grow: 1; /* Ambil semua ruang vertikal yang tersedia */
             width: 100%;
-            position: relative; /* Untuk positioning sidebar */
+            position: relative; /* Untuk positioning sidebar dan zoom controls */
             overflow: hidden; /* Penting untuk transisi sidebar */
             background-color: transparent; /* Dibuat transparan */
         }
@@ -457,14 +476,18 @@
             margin: 0;
             padding: 0;
             display: block; /* Pastikan berperilaku sebagai elemen blok */
-            /* UPDATED: Added transform to transition for smooth scaling */
             transition: filter 0.3s ease, width 0.3s ease, transform 0.3s ease;
-            transform-origin: center center; /* NEW: Set transform origin for scaling */
+            transform-origin: top left; /* Set transform origin for scaling from top-left */
+            cursor: grab; /* Default cursor for draggable iframe */
+            overflow: auto; /* Enable scrollbars on iframe itself */
         }
-        /* Pastikan iframe terlihat bahkan ketika pointer-events nonaktif untuk overlay */
         #examIframe.blurred {
             filter: grayscale(100%) blur(5px);
             pointer-events: none; /* Nonaktifkan interaksi dengan iframe */
+        }
+        #examIframe.dragging {
+            cursor: grabbing; /* Cursor saat digeser */
+            pointer-events: none; /* Penting: Nonaktifkan interaksi dengan konten iframe saat menyeret */
         }
 
         /* --- Sidebar Jawaban --- */
@@ -478,7 +501,7 @@
             box-shadow: none; /* Hapus bayangan */
             display: flex;
             flex-direction: column;
-            transform: translateX(calc(100% - 70px)); /* Awalnya tersembunyi, hanya 70px terlihat */
+            transform: translateX(calc(100% - 56px)); /* Awalnya tersembunyi, hanya 56px terlihat */
             transition: transform 0.3s ease-in-out;
             z-index: 600; /* Di atas iframe, di bawah overlay utama */
             /* REMOVED: border-left: 1px solid #ddd; */
@@ -499,19 +522,24 @@
             position: absolute; /* Posisikan relatif terhadap examContentWrapper */
             right: 0; /* Posisikan di kanan examContentWrapper */
             top: 0; /* Posisikan di bagian atas */
-            height: 20%; /* Tinggi 20% dari parent */
-            width: 70px; /* Lebar baru 70px */
+            height: 16%; /* Tinggi 20% dari 100% menjadi 16% (20% * 0.8) */
+            width: 56px; /* Lebar baru 56px */
             display: flex; /* Default: visible */
             align-items: center;
             justify-content: center;
-            border-top-left-radius: 8px;
-            border-bottom-left-radius: 0; /* Hapus radius bawah */
+            border-radius: 8px 0 0 8px; /* Consistent rounding */
             box-shadow: none; /* Hapus bayangan */
-            transition: background-color 0.2s ease, transform 0.3s ease-in-out;
+            transition: background-color 0.2s ease, transform 0.3s ease-in-out, opacity 0.2s ease; /* Add opacity transition */
             padding: 0;
             box-sizing: border-box;
             z-index: 601;
             transform: translateX(0);
+            opacity: 0.5; /* Initial transparency */
+        }
+
+        #sidebarToggle:hover {
+            background-color: #218838;
+            opacity: 1; /* Full opacity on hover */
         }
 
         #sidebarToggle #sidebarText {
@@ -522,35 +550,36 @@
             padding: 10px 5px; /* Padding untuk teks */
         }
 
-        #sidebarToggle:hover {
-            background-color: #218838;
-        }
 
         /* NEW: Styles for the dedicated Close Sidebar Button */
         #closeSidebarButton {
-            display: none; /* Hidden by default */
-            position: absolute;
-            left: 0; /* Position on the left edge of the sidebar */
-            top: 0; /* Posisikan di bagian atas */
-            height: 20%; /* Tinggi 20% dari parent */
-            width: 70px; /* Lebar baru 70px */
             background-color: #dc3545; /* Red for close action */
             color: white;
             font-size: 1.1em;
             font-weight: bold;
             cursor: pointer;
             border: none;
-            border-top-right-radius: 8px; /* Radius kanan atas */
-            border-bottom-right-radius: 0; /* Hapus radius kanan bawah */
+            border-radius: 0 8px 8px 0; /* Consistent rounding */
             box-shadow: none; /* Hapus bayangan */
-            display: flex;
+            display: none; /* Hidden by default */
+            position: absolute;
+            left: 0; /* Position on the left edge of the sidebar */
+            top: 0; /* Posisikan di bagian atas */
+            height: 16%; /* Tinggi 20% dari 100% menjadi 16% (20% * 0.8) */
+            width: 56px; /* Lebar baru 56px */
             flex-direction: column; /* Vertical layout for icon and text */
             align-items: center;
             justify-content: center;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, opacity 0.2s ease; /* Add opacity transition */
             z-index: 602;
             padding: 0;
             box-sizing: border-box;
+            opacity: 0.5; /* Initial transparency */
+        }
+
+        #closeSidebarButton:hover {
+            background-color: #c82333; /* Darker red on hover */
+            opacity: 1; /* Full opacity on hover */
         }
 
         #closeSidebarButton #closeSidebarText { /* NEW: Style for the text inside the close button */
@@ -559,10 +588,6 @@
             transform: rotate(180deg); /* Putar untuk keterbacaan */
             white-space: nowrap;
             padding: 10px 5px; /* Padding untuk teks */
-        }
-
-        #closeSidebarButton:hover {
-            background-color: #c82333; /* Darker red on hover */
         }
 
         /* When sidebar is open, adjust iframe width and show/hide buttons */
@@ -591,7 +616,7 @@
             grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); /* Kolom responsif, diperkecil */
             gap: 8px;
             flex-shrink: 1; /* Izinkan menyusut */
-            margin-left: 70px; /* Space for the new wider close button */
+            margin-left: 56px; /* Space for the new wider close button (56px) */
         }
 
         .answer-box {
@@ -643,7 +668,7 @@
             color: red;
             font-weight: bold;
             text-align: center;
-            margin: 5px 0 10px 70px; /* Adjust margin to align with button */
+            margin: 5px 0 10px 56px; /* Adjust margin to align with button (56px) */
             font-size: 0.9em;
             min-height: 1.2em; /* Ensure space even when empty */
         }
@@ -654,9 +679,9 @@
             padding: 12px;
             margin-top: 0px; /* Margin atas disesuaikan */
             margin-bottom: 10px; /* Margin bawah */
-            margin-left: 70px; /* Sesuaikan dengan margin-left answerListContainer */
+            margin-left: 56px; /* Sesuaikan dengan margin-left answerListContainer (56px) */
             margin-right: 10px; /* Sesuaikan dengan padding-right answerListContainer */
-            width: calc(100% - 80px); /* Lebar sidebar (250px) - lebar tombol kiri (70px) - padding kiri (10px) - padding kanan (10px) */
+            width: calc(100% - 66px); /* Lebar sidebar (250px) - lebar tombol kiri (56px) - padding kiri (10px) */
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -958,13 +983,34 @@
         }
 
         /* GAYA BARU UNTUK fullscreenOverlay */
+        #fullscreenOverlay {
+            display: none; /* Awalnya disembunyikan oleh JS */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7); /* Ini adalah latar belakang */
+            z-index: 1000;
+            justify-content: center; /* Memusatkan secara horizontal */
+            align-items: center;   /* Memusatkan secara vertikal */
+            overflow: hidden;
+            pointer-events: none; /* Awalnya tidak interaktif */
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #fullscreenOverlay.show {
+            display: flex; /* Ditampilkan oleh JS saat kelas ini ditambahkan */
+            opacity: 1;
+            pointer-events: auto; /* Menjadi interaktif saat ditampilkan */
+        }
         #fullscreenOverlay .overlay-content {
             background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); /* Gradien biru */
             color: white;
             padding: 40px;
             border-radius: 15px;
             max-width: 500px;
-            width: 90%;
+            width: 90%; /* Ini responsif */
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
             text-align: center;
             box-sizing: border-box;
@@ -1024,6 +1070,92 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
+        /* NEW: Zoom controls styling */
+        #zoomControls {
+            position: absolute;
+            top: 10px; /* Jarak dari atas */
+            left: 10px; /* Jarak dari kiri */
+            display: flex;
+            flex-direction: column;
+            gap: 5px; /* Jarak antar tombol */
+            z-index: 700; /* Pastikan di atas iframe dan sidebar */
+            background-color: rgba(0, 0, 0, 0.5); /* Latar belakang semi-transparan */
+            border-radius: 8px;
+            padding: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.3s ease-in-out; /* Smooth transition for showing/hiding */
+        }
+
+        #mainToggleBtnContainer {
+            display: flex;
+            gap: 5px; /* Space between hamburger and refresh */
+            margin-bottom: 5px; /* Space below this row */
+        }
+
+        #zoomControls button {
+            width: 40px; /* Ukuran tombol */
+            height: 40px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
+            background-color: #007bff; /* Warna biru */
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease, opacity 0.2s ease; /* Add opacity transition */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0; /* Override default button margin */
+            opacity: 0.5; /* Initial transparency for all buttons */
+        }
+
+        #zoomControls button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+            opacity: 1; /* Full opacity on hover */
+        }
+
+        #zoomControls button:active {
+            transform: scale(0.95);
+        }
+
+        #zoomControls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.5; /* Keep transparency for disabled state */
+        }
+
+        /* Initial state: controlsGrid is hidden */
+        #controlsGrid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 columns */
+            gap: 5px; /* Gap between buttons */
+            transition: all 0.3s ease-in-out;
+            overflow: hidden; /* Hide overflow during transition */
+            height: 0; /* Initially hidden */
+            opacity: 0;
+            pointer-events: none; /* Disable interaction when hidden */
+        }
+
+        /* When controls are shown */
+        #zoomControls.show-controls #controlsGrid {
+            height: auto; /* Expand height */
+            opacity: 1;
+            pointer-events: auto; /* Enable interaction when shown */
+        }
+
+        /* Style for Refresh button icon */
+        #refreshIframeBtn .icon {
+            font-size: 1.2em; /* Ukuran ikon panah */
+        }
+
+        /* Style for pan icons */
+        #panLeftBtn .icon, #panRightBtn .icon {
+            font-size: 1.5em; /* Make arrows slightly larger */
+        }
+
+
         @keyframes fadeInScale {
             from {
                 opacity: 0;
@@ -1072,7 +1204,7 @@
                 font-size: 2em;
             }
             #fullscreenOverlay .overlay-instructions {
-                font-size: 1em;
+                font-size: 0.9em; /* Lebih kecil di mobile */
             }
             #fullscreenOverlay .overlay-instructions li {
                 padding-left: 25px;
@@ -1083,6 +1215,15 @@
             #fullscreenOverlay .overlay-button {
                 font-size: 1.1em;
                 padding: 12px 25px;
+            }
+            /* Media queries untuk countdown display */
+            #countdownDisplay {
+                font-size: 1.1em; /* Lebih kecil di mobile */
+                padding: 8px; /* Padding lebih kecil */
+            }
+            #countdownDisplay #studentNameDisplay,
+            #countdownDisplay #classDisplay {
+                font-size: 0.9em; /* Font size lebih kecil untuk nama/kelas */
             }
             /* Media queries yang diperbarui untuk overlay peringatan */
             #warningCountdown {
@@ -1143,21 +1284,21 @@
             /* Sidebar responsif untuk mobile */
             #answerSidebar {
                 width: 180px; /* Lebar lebih kecil di mobile */
-                transform: translateX(calc(100% - 70px)); /* Hanya 70px terlihat */
+                transform: translateX(calc(100% - 56px)); /* Hanya 56px terlihat */
             }
             #answerSidebar.open {
                 transform: translateX(0);
             }
             #sidebarToggle {
-                width: 70px; /* Lebar tombol toggle lebih kecil */
-                height: 20%; /* Tinggi 20% dari parent */
+                width: 56px; /* Lebar tombol toggle lebih kecil */
+                height: 16%; /* Tinggi 20% dari 100% menjadi 16% */
             }
             #sidebarToggle #sidebarText {
                 padding: 8px 3px; /* Sesuaikan padding untuk mobile */
             }
             #closeSidebarButton {
-                width: 70px; /* Lebar tombol tutup lebih kecil */
-                height: 20%; /* Tinggi 20% dari parent */
+                width: 56px; /* Lebar tombol tutup lebih kecil */
+                height: 16%; /* Tinggi 20% dari 100% menjadi 16% */
             }
             #closeSidebarButton #closeSidebarText {
                 padding: 8px 3px; /* Sesuaikan padding untuk mobile */
@@ -1165,7 +1306,7 @@
             #answerListContainer {
                 grid-template-columns: repeat(auto-fill, minmax(25px, 1fr)); /* Kolom lebih kecil */
                 gap: 5px;
-                margin-left: 70px; /* Space for the new close button on mobile */
+                margin-left: 56px; /* Space for the new close button on mobile */
             }
             .answer-box {
                 height: 30px; /* Tinggi kotak lebih kecil */
@@ -1178,7 +1319,7 @@
             #submitAnswersButton {
                 font-size: 0.9em;
                 padding: 10px;
-                width: calc(100% - 80px); /* Adjust width for mobile */
+                width: calc(100% - 66px); /* Adjust width for mobile */
             }
             #answerSelectionModal .modal-content {
                 max-width: 280px;
@@ -1186,6 +1327,12 @@
             #answerOptions button {
                 width: 50px;
                 height: 50px;
+                font-size: 1.2em;
+            }
+            /* Zoom controls for mobile */
+            #zoomControls button {
+                width: 35px;
+                height: 35px;
                 font-size: 1.2em;
             }
         }
@@ -1269,6 +1416,22 @@
         </div>
         <div id="examContentWrapper">
             <iframe id="examIframe" src="" frameborder="0"></iframe>
+
+            <div id="zoomControls">
+                <div id="mainToggleBtnContainer">
+                    <button id="toggleControlsBtn" title="Toggle Controls">
+                        <span class="icon">&#9776;</span> </button>
+                    <button id="refreshIframeBtn" title="Refresh Iframe">
+                        <span class="icon">&#x21BB;</span>
+                    </button>
+                </div>
+                <div id="controlsGrid">
+                    <button id="zoomInBtn">+</button>
+                    <button id="zoomOutBtn">-</button>
+                    <button id="panLeftBtn"><span class="icon">&larr;</span></button>
+                    <button id="panRightBtn"><span class="icon">&rarr;</span></button>
+                </div>
+            </div>
 
             <button id="sidebarToggle">
                 <span id="sidebarText">JAWAB</span>
@@ -1376,12 +1539,12 @@
         <div class="overlay-content">
             <h2 class="overlay-title">PERHATIKAN HAL-HAL BERIKUT:</h2>
             <ul class="overlay-instructions">
-                <li>Berdoalah dan kerjakan ujian dengan sungguh-sungguh</li>
-                <li>Dilarang melakukan kecurangan selama ujian</li>
-                <li>Pastikan jaringan Anda dalam kondisi baik</li>
-                <li>Untuk mengerjakan klik menu "PILIHAN JAWABAN" pada bagian sisi kanan</li>
-                <li>Tombol "Kirim Jawaban" akan aktif jika sisa waktu tinggal 30 menit</li>
-                <li>Jika waktu habis, ujian Anda akan otomatis terkirim!</li>
+                <li>Berdoa & kerjakan sungguh-sungguh</li>
+                <li>Dilarang curang</li>
+                <li>Pastikan jaringan stabil</li>
+                <li>Klik "JAWAB" di kanan untuk mengisi</li>
+                <li>"Kirim Jawaban" aktif sisa 30 menit</li>
+                <li>Ujian otomatis terkirim jika waktu habis</li>
             </ul>
             <button id="overlayUnderstandBtn" class="overlay-button">SAYA MENGERTI</button>
         </div>
@@ -1413,7 +1576,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-        import { getDatabase, ref, get, child, runTransaction, set, onValue, off, update } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+        import { getDatabase, ref, get, child, runTransaction, set, onValue, off, update, remove } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js"; // Added 'remove'
 
         // Firebase configuration (MATCHING ADMIN PANEL)
         // As per user's request, this page will only use firebaseConfig7.
@@ -1516,6 +1679,16 @@
         // Get reference to examContentWrapper to add/remove class for sidebar state
         const examContentWrapper = document.getElementById('examContentWrapper');
 
+        // NEW: Zoom controls elements
+        const zoomControls = document.getElementById('zoomControls');
+        const toggleControlsBtn = document.getElementById('toggleControlsBtn');
+        const controlsGrid = document.getElementById('controlsGrid');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const panLeftBtn = document.getElementById('panLeftBtn');
+        const panRightBtn = document.getElementById('panRightBtn');
+        const refreshIframeBtn = document.getElementById('refreshIframeBtn');
+
 
         let allStudentsData = [];
         let selectedStudentData = null;
@@ -1562,9 +1735,17 @@
 
         // NEW: Zoom variables for iframe
         let currentZoom = 1.0;
-        const MIN_ZOOM = 0.5;
+        const MIN_ZOOM = 1.0; // Changed to 1.0 as requested
         const MAX_ZOOM = 2.0;
         const ZOOM_STEP = 0.1;
+        const PAN_STEP = 20; // Pixels to pan per click
+
+        // Global variables for panning
+        let isDragging = false;
+        let startX, startY;
+        let currentTranslateX = 0;
+        let currentTranslateY = 0;
+        let autoHideTimer;
 
 
         // --- Utility Functions ---
@@ -1709,26 +1890,9 @@
             confirmCheckbox.checked = false;
             updateLoginButtonStatus();
 
-            // NEW: Set isLoggedIn to false in Firebase if a token and student were selected
-            if (foundTokenGlobal && selectedStudentData) {
-                const tokenFirebaseKey = foundTokenGlobal.key;
-                const studentId = padStudentId(selectedStudentData.id);
-                const studentFirebaseKey = selectedStudentData.key;
-
-                try {
-                    const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
-                    await update(accessStatusRef, { isLoggedIn: false });
-                    console.log("isLoggedIn set to false in exam_access_status on modal cancel.");
-
-                    if (studentFirebaseKey) {
-                        const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
-                        await set(studentIsLoggedInRef, false);
-                        console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on modal cancel.`);
-                    }
-                } catch (error) {
-                    console.error("Failed to set isLoggedIn to false on modal cancel:", error);
-                }
-            }
+            // NEW: No need to update Firebase here as isLoggedIn:true is only set on "Lanjutkan" click
+            // If the user cancels here, it means isLoggedIn:true was never set in the first place
+            // and no exam_access_status entry was created.
             sessionStorage.clear(); // Clear session storage
         };
 
@@ -1842,7 +2006,7 @@
          * @returns {Promise<void>}
          */
         async function loadStudentsAndPopulateClassDropdown() {
-            customSelectKelasDisplay.classList.add('disabled');
+            customSelectKelasDisplay.classList.add('disabled'); /* Keep disabled initially */
             customSelectNamaSiswaDisplay.classList.add('disabled');
             inputTokenPrefix.disabled = true; // Disable token prefix input initially
             displayStudentId.value = ""; // Ensure ID is empty initially
@@ -1878,7 +2042,7 @@
                         listItem.addEventListener('click', () => selectClass(cls));
                         classModalList.appendChild(listItem);
                     });
-                    customSelectKelasDisplay.classList.remove('disabled');
+                    customSelectKelasDisplay.classList.remove('disabled'); /* Enable after loading */
                     message.textContent = "";
                 } else {
                     message.style.color = "orange";
@@ -2081,8 +2245,8 @@
             loginContainer.style.opacity = 0;
             setTimeout(() => {
                 loginContainer.style.display = 'none';
-                fullscreenOverlay.style.display = 'flex';
-                setTimeout(() => { fullscreenOverlay.style.opacity = 1; }, 10); // Small delay to trigger CSS transition
+                fullscreenOverlay.style.display = 'flex'; // Explicitly set display to flex
+                fullscreenOverlay.classList.add('show'); // Add the class for opacity and pointer-events
                 document.body.style.overflow = 'hidden';
                 examIframe.classList.add('blurred'); // Blur iframe
                 isAnyModalOpen = true; // Set modal status
@@ -2095,9 +2259,9 @@
          * @returns {void}
          */
         function hideOverlay() {
-            fullscreenOverlay.style.opacity = 0;
+            fullscreenOverlay.classList.remove('show'); // Remove the class first to trigger fade out
             setTimeout(() => {
-                fullscreenOverlay.style.display = 'none';
+                fullscreenOverlay.style.display = 'none'; // Then hide it after transition
                 document.body.style.overflow = '';
                 examIframe.classList.remove('blurred'); // Remove blur
                 isAnyModalOpen = false; // Set modal status
@@ -2260,8 +2424,13 @@
                 setTimeout(() => { fullscreenExitWarningOverlay.style.opacity = 1; }, 10);
                 examIframe.classList.add('blurred'); // Blur iframe
                 document.body.style.overflow = 'hidden';
-                // Close sidebar on fullscreen exit
-                answerSidebar.classList.remove('open');
+                
+                // Hide all other exam UI elements
+                countdownDisplay.style.display = 'none';
+                zoomControls.style.display = 'none';
+                sidebarToggle.style.display = 'none';
+                closeSidebarButton.style.display = 'none';
+                answerSidebar.classList.remove('open'); // Ensure sidebar is closed
                 examContentWrapper.classList.remove('sidebar-open'); // Ensure wrapper class is removed
                 examIframe.style.width = '100%'; // Reset iframe width
                 isAnyModalOpen = true; // Set modal status
@@ -2272,6 +2441,12 @@
                 examIframe.classList.remove('blurred'); // Remove blur
                 document.body.style.overflow = '';
                 isAnyModalOpen = false; // Set modal status
+
+                // Restore visibility of exam UI elements
+                countdownDisplay.style.display = 'flex';
+                zoomControls.style.display = 'flex';
+                sidebarToggle.style.display = 'flex'; // Show JAWAB button
+                closeSidebarButton.style.display = 'none'; // Ensure TUTUP button is hidden
             }
         }
 
@@ -2377,12 +2552,16 @@
 
 
             timerInterval = setInterval(updateTimerDisplay, 1000); // Start timer
-            countdownDisplay.style.display = 'block'; // Ensure countdown display is visible
+            countdownDisplay.style.display = 'flex'; // Ensure countdown display is visible
             updateTimerDisplay(); // Initial call to display immediately
 
             attemptFullscreen(); // Request fullscreen here
             history.pushState(null, '', location.href); // Prevent back button
             startSubmissionStatusListener();
+
+            // Set initial state for sidebar buttons
+            sidebarToggle.style.display = 'flex'; // Show JAWAB
+            closeSidebarButton.style.display = 'none'; // Hide TUTUP
         }
 
 
@@ -2507,13 +2686,12 @@
         async function handleLanjutClick(fullTokenId, examDurationMinutes, numQuestions, initialAnswers = null) {
             if (!confirmCheckbox.checked) {
                 modalMessage.style.display = 'block';
-                modalMessage.textContent = "Anda harus mencentang 'Data di atas sudah benar' untuk melanjutkan.";
+                modalMessage.textContent = "Anda harus mencentang cekbox untuk melanjutkan!"; // UPDATED MESSAGE
                 return;
             } else {
                 modalMessage.style.display = 'none';
             }
 
-            // No need for message.innerHTML = `Mencatat akses ujian... <span class="spinner"></span>`; here
             confirmModal.classList.remove('show');
             isAnyModalOpen = false;
 
@@ -2527,16 +2705,89 @@
                 sessionStorage.clear();
                 return;
             }
-            
-            // Store exam details globally before showing overlay
-            globalExamUrl = foundTokenGlobal.googleDriveUrl;
-            globalExamDurationMinutes = examDurationMinutes;
-            globalNumQuestions = numQuestions;
-            // globalExamStartTime is already correctly set by cekToken from exam_access_status
-            // DO NOT OVERWRITE IT HERE: globalExamStartTime = new Date(foundTokenGlobal.startTime).getTime(); 
-            globalInitialAnswers = initialAnswers; // Ensure this is passed and stored
 
-            showOverlay(globalInitialAnswers); // Show overlay, which will call startExamProcess after dismissal
+            message.innerHTML = `Mencatat akses ujian... <span class="spinner"></span>`;
+
+            const tokenFirebaseKey = foundTokenGlobal.key;
+            const studentId = padStudentId(selectedStudentData.id);
+            const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+            const studentFirebaseKey = selectedStudentData.key; // Get student's Firebase key
+
+            try {
+                let examAccessDataAfterTransaction = await runTransaction(accessStatusRef, (currentAccess) => {
+                    const nowAccess = Date.now();
+                    if (currentAccess === null) {
+                        // This is the first login for this student and token
+                        return {
+                            accessCount: 1,
+                            firstLoginTimestamp: nowAccess,
+                            lastAccessTimestamp: nowAccess,
+                            isLoggedIn: true, // Set to true here
+                            examStartTime: nowAccess // Set examStartTime for first login
+                        };
+                    } else {
+                        // This case should ideally not be hit if the logic is perfect,
+                        // but it handles scenarios where currentAccess exists without isLoggedIn:true
+                        // or if a previous transaction was aborted.
+                        currentAccess.accessCount = (currentAccess.accessCount || 0) + 1;
+                        currentAccess.lastAccessTimestamp = nowAccess;
+                        currentAccess.isLoggedIn = true; // Ensure it's true
+
+                        // If it's a force active token and examStartTime is invalid/missing, re-initialize
+                        if (foundTokenGlobal.isForceActive && (!currentAccess.examStartTime || isNaN(currentAccess.examStartTime) || currentAccess.examStartTime <= 0)) {
+                            currentAccess.examStartTime = nowAccess;
+                            console.warn("Force active token: examStartTime was invalid/missing, re-initializing to current time on 'Lanjutkan'.");
+                        }
+                        return currentAccess;
+                    }
+                });
+
+                if (examAccessDataAfterTransaction.committed) {
+                    console.log(`Access to token ${foundTokenGlobal.key} by student ${selectedStudentData.id} successfully updated. New accessCount: ${examAccessDataAfterTransaction.snapshot.val().accessCount}`);
+                    
+                    // Synchronize isLoggedIn status in students node
+                    if (studentFirebaseKey) {
+                        const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
+                        await set(studentIsLoggedInRef, true); // Set to true
+                        console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to true on 'Lanjutkan'.`);
+                    } else {
+                        console.warn(`Could not find Firebase key for student ${selectedStudentData.id} to update isLoggedIn status in students node.`);
+                    }
+
+                    // Set global variables before starting the exam process or showing overlay
+                    globalExamUrl = foundTokenGlobal.googleDriveUrl;
+                    globalExamDurationMinutes = examDurationMinutes;
+                    globalNumQuestions = numQuestions;
+                    globalExamStartTime = Number(examAccessDataAfterTransaction.snapshot.val().examStartTime);
+                    globalInitialAnswers = initialAnswers;
+
+                    // Ensure examStartTime is valid
+                    if (isNaN(globalExamStartTime) || globalExamStartTime <= 0) {
+                        console.error("Critical Error: globalExamStartTime tidak valid setelah transaksi di handleLanjutClick. Menggunakan Date.now() sebagai fallback.");
+                        globalExamStartTime = Date.now();
+                    }
+
+                    message.textContent = ""; // Clear "Mencatat akses ujian..."
+                    showOverlay(globalInitialAnswers); // Show overlay, which will call startExamProcess after dismissal
+                } else {
+                    console.warn("Transaction for exam access status was aborted in handleLanjutClick.");
+                    message.style.color = "orange";
+                    message.textContent = "Gagal mencatat akses ujian. Silakan coba lagi.";
+                    updateLoginButtonStatus();
+                    loginContainer.style.display = 'flex';
+                    examContainer.style.display = 'none';
+                    sessionStorage.clear();
+                }
+
+            } catch (err) {
+                console.error("Error in handleLanjutClick (during exam access transaction):", err);
+                message.style.color = "red";
+                message.textContent = "Terjadi kesalahan saat mencatat akses ujian. Silakan coba lagi atau hubungi administrator.";
+                updateLoginButtonStatus();
+                loginContainer.style.display = 'flex';
+                examContainer.style.display = 'none';
+                sessionStorage.clear();
+            }
         }
 
         // --- Answer Sidebar and Submission Logic ---
@@ -2550,13 +2801,17 @@
             
             if (!isSidebarOpen) { // Sidebar is currently closed, opening it
                 examContentWrapper.classList.add('sidebar-open');
-                // sidebarToggle (green button) will be hidden by CSS rule
-                // closeSidebarButton (red button) will be shown by CSS rule
+                sidebarToggle.style.display = 'none'; // Hide JAWAB
+                closeSidebarButton.style.display = 'flex'; // Show TUTUP
             } else { // Sidebar is currently open, closing it
                 examContentWrapper.classList.remove('sidebar-open');
-                // sidebarToggle (green button) will be shown by CSS rule
-                // closeSidebarButton (red button) will be hidden by CSS rule
+                sidebarToggle.style.display = 'flex'; // Show JAWAB
+                closeSidebarButton.style.display = 'none'; // Hide TUTUP
+
+                // NEW: Hide the submission warning message when closing the sidebar
+                submissionWarningMessage.textContent = '';
             }
+            resetIframePan(); // Reset panning when sidebar state changes
         }
 
         /**
@@ -2755,7 +3010,7 @@
                 // 1. Simpan string jawaban (final save)
                 await saveStudentAnswersToFirebase(); // Ensure latest answers are saved
 
-                // 2. Tandai ujian sebagai sudah dikirim di exam_access_status
+                // 2. Tandai ujian sebagai sudah dikirim di submitted_exams
                 const submittedExamPath = child(submittedExamsRef, `${tokenFirebaseKey}/${studentId}`);
                 await set(submittedExamPath, { isSubmitted: true, timestamp: Date.now() });
                 console.log("Status ujian berhasil diperbarui menjadi submitted di submitted_exams.");
@@ -2869,6 +3124,69 @@
             });
         }
 
+        // Function to parse current transform values
+        function getTranslateValues(element) {
+            const style = window.getComputedStyle(element);
+            const matrix = style.transform;
+
+            // No transform applied, return 0,0
+            if (matrix === 'none') {
+                return { x: 0, y: 0 };
+            }
+
+            // Parse the matrix string
+            const matrixValues = matrix.match(/matrix.*\((.+)\)/)[1].split(', ');
+            return {
+                x: parseFloat(matrixValues[4]),
+                y: parseFloat(matrixValues[5])
+            };
+        }
+
+        // Apply transform
+        function applyIframeTransform() {
+            examIframe.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${currentZoom})`;
+            console.log(`Applying transform: translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${currentZoom})`);
+        }
+
+        // Reset panning when zoom changes or sidebar opens/closes
+        function resetIframePan() {
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            applyIframeTransform();
+        }
+
+        // Function to update zoom button states (disabled/enabled)
+        function updateZoomButtonStates() {
+            zoomInBtn.disabled = currentZoom >= MAX_ZOOM;
+            zoomOutBtn.disabled = currentZoom <= MIN_ZOOM;
+            
+            // Pan buttons are only enabled if zoomed in
+            const isZoomedIn = currentZoom > MIN_ZOOM;
+            panLeftBtn.disabled = !isZoomedIn;
+            panRightBtn.disabled = !isZoomedIn;
+
+            // Refresh button is always enabled
+            refreshIframeBtn.disabled = false;
+        }
+
+        // Auto-hide controls logic
+        function resetAutoHideTimer() {
+            clearTimeout(autoHideTimer);
+            autoHideTimer = setTimeout(() => {
+                if (zoomControls.classList.contains('show-controls')) {
+                    zoomControls.classList.remove('show-controls');
+                }
+            }, 3000); // 3 seconds as requested
+        }
+
+        function toggleControlsPanel() {
+            zoomControls.classList.toggle('show-controls');
+            if (zoomControls.classList.contains('show-controls')) {
+                resetAutoHideTimer(); // Start timer when shown
+            } else {
+                clearTimeout(autoHideTimer); // Clear timer when manually hidden
+            }
+        }
 
         // --- Initial Setup when DOM Content is Loaded ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -2908,18 +3226,6 @@
                 message.innerHTML = `Memproses data... <span class="spinner"></span>`;
 
                 try {
-                    // --- Pre-login check for submitted exams ---
-                    // This check needs the Firebase key of the token, so we'll move it after finding the token
-                    // const hasSubmittedSnapshot = await get(child(submittedExamsRef, `${tokenPrefix}/${studentId}`));
-                    // if (hasSubmittedSnapshot.exists() && hasSubmittedSnapshot.val().isSubmitted === true) {
-                    //     message.style.color = "red";
-                    //     message.textContent = "Anda sudah menyelesaikan ujian ini dan tidak dapat login kembali.";
-                    //     updateLoginButtonStatus();
-                    //     sessionStorage.clear(); // Clear session storage as exam is already submitted
-                    //     return;
-                    // }
-                    // --- End Pre-login check ---
-
                     const tokensSnapshot = await get(tokensRef);
                     let foundToken = null;
 
@@ -2941,7 +3247,7 @@
 
                     foundTokenGlobal = foundToken; // Store globally
 
-                    // --- NOW perform pre-login check for submitted exams using the token's Firebase key ---
+                    // --- Perform pre-login check for submitted exams using the token's Firebase key ---
                     const hasSubmittedSnapshot = await get(child(submittedExamsRef, `${foundTokenGlobal.key}/${studentId}`));
                     if (hasSubmittedSnapshot.exists() && hasSubmittedSnapshot.val().isSubmitted === true) {
                         message.style.color = "red";
@@ -2950,27 +3256,8 @@
                         sessionStorage.clear(); // Clear session storage as exam is already submitted
                         return;
                     }
-                    // --- End NOW perform pre-login check ---
-
 
                     console.log("cekToken: foundToken.answerKey is:", foundToken.answerKey);
-
-                    // --- NEW: Check isLoggedIn status before proceeding ---
-                    // Use foundTokenGlobal.key for exam_access_status path
-                    const accessStatusRef = child(examAccessStatusRef, `${foundTokenGlobal.key}/${studentId}`);
-                    const accessStatusSnapshot = await get(accessStatusRef);
-
-                    if (accessStatusSnapshot.exists()) {
-                        const accessData = accessStatusSnapshot.val();
-                        if (accessData.isLoggedIn === true) {
-                            message.style.color = "red";
-                            message.textContent = "Akun Anda sudah login diperangkat lain.";
-                            updateLoginButtonStatus();
-                            return; // Block login
-                        }
-                    }
-                    // --- END NEW: Check isLoggedIn status ---
-
 
                     const now = new Date();
                     const startTime = new Date(foundToken.startTime);
@@ -3013,7 +3300,6 @@
                         return;
                     }
 
-                    // NEW: Get exam duration directly from foundToken.durationMinutes
                     let examDurationMinutes = foundToken.durationMinutes;
                     if (typeof examDurationMinutes !== 'number' || isNaN(examDurationMinutes) || examDurationMinutes <= 0) {
                         message.style.color = "red";
@@ -3022,141 +3308,72 @@
                         return;
                     }
                     
-                    // Calculate totalQuestions based on the length of answerKey
                     const answerKeyArray = foundToken.answerKey ? foundToken.answerKey.split(',') : [];
-                    const numQuestions = answerKeyArray.length; // Use the length of the answerKey
+                    const numQuestions = answerKeyArray.length;
                     console.log("cekToken: Calculated numQuestions:", numQuestions);
 
-                    // --- Always load student answers from Firebase here ---
-                    message.innerHTML = `Memuat jawaban siswa... <span class="spinner"></span>`;
-                    // Use foundTokenGlobal.key for student_answers path
-                    const studentAnswersPath = child(studentAnswersRef, `${foundTokenGlobal.key}/${selectedStudentData.id}`);
-                    const answersSnapshot = await get(studentAnswersPath);
+                    // --- Check isLoggedIn status for existing session ---
+                    const accessStatusRef = child(examAccessStatusRef, `${foundTokenGlobal.key}/${studentId}`);
+                    const accessStatusSnapshot = await get(accessStatusRef);
                     let loadedAnswers = Array(numQuestions).fill(''); // Default empty
-                    if (answersSnapshot.exists()) {
-                        const savedAnswersData = answersSnapshot.val();
-                        loadedAnswers = savedAnswersData.answers ? savedAnswersData.answers.split(',') : Array(numQuestions).fill('');
-                        console.log("Jawaban siswa dimuat dari Firebase:", loadedAnswers);
-                    } else {
-                        console.warn("Tidak ada jawaban tersimpan di Firebase di jalur ini, memulai dengan array kosong.");
-                    }
-                    // --- End Always load student answers from Firebase ---
 
-                    let initialAccessCount = 0; // To store accessCount before transaction
-                    let examAccessDataAfterTransaction = null; // To store the result of the transaction
-
-                    try {
-                        // Perform the transaction to update exam_access_status for ALL logins
-                        // Use foundTokenGlobal.key for exam_access_status path
-                        examAccessDataAfterTransaction = await runTransaction(accessStatusRef, (currentAccess) => {
-                            const nowAccess = Date.now();
-                            if (currentAccess === null) {
-                                initialAccessCount = 0; // Ini adalah akses pertama
-                                return {
-                                    accessCount: 1,
-                                    firstLoginTimestamp: nowAccess,
-                                    lastAccessTimestamp: nowAccess,
-                                    isLoggedIn: true, // Set to true on first login
-                                    examStartTime: nowAccess // Set examStartTime for first login
-                                };
-                            } else {
-                                initialAccessCount = currentAccess.accessCount || 0; // Simpan jumlah akses saat ini
-                                currentAccess.accessCount = (currentAccess.accessCount || 0) + 1;
-                                currentAccess.lastAccessTimestamp = nowAccess;
-                                currentAccess.isLoggedIn = true;
-
-                                // *** START MODIFICATION FOR FORCE ACTIVE TOKEN EXAM START TIME ***
-                                // For force active tokens, ensure examStartTime is valid and, if it's the first time
-                                // this specific student logs in with this force-active token, or if the stored
-                                // examStartTime is invalid/missing, re-initialize it to nowAccess.
-                                // This ensures the timer starts fresh for remedial students.
-                                if (foundTokenGlobal.isForceActive && (!currentAccess.examStartTime || isNaN(currentAccess.examStartTime) || currentAccess.examStartTime <= 0)) {
-                                    currentAccess.examStartTime = nowAccess;
-                                    console.warn("Force active token: examStartTime was invalid/missing, re-initializing to current time.");
-                                }
-                                // *** END MODIFICATION ***
-                                
-                                // Otherwise, retain existing examStartTime (for both force active and regular tokens)
-                                return currentAccess;
-                            }
-                        });
-
-                        if (examAccessDataAfterTransaction.committed) {
-                            console.log(`Access to token ${foundToken.key} by student ${selectedStudentData.id} successfully updated. New accessCount: ${examAccessDataAfterTransaction.snapshot.val().accessCount}`);
-                            
-                            // *** START NEW: Synchronize isLoggedIn status in students node ***
-                            const studentFirebaseKey = selectedStudentData.key; // Get student's Firebase key
-                            if (studentFirebaseKey) {
-                                const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
-                                await set(studentIsLoggedInRef, true); // Set to true
-                                console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to true.`);
-                            } else {
-                                console.warn(`Could not find Firebase key for student ${selectedStudentData.id} to update isLoggedIn status in students node.`);
-                            }
-                            // *** END NEW ***
-
-                        } else {
-                            console.warn("Transaction for exam access status was aborted.");
-                            message.style.color = "orange";
-                            message.textContent = "Gagal mencatat akses ujian. Silakan coba lagi.";
-                            updateLoginButtonStatus();
-                            return; // Abort login if transaction failed
-                        }
-
-                        // Set global variables before starting the exam process or showing modal
-                        globalExamUrl = foundToken.googleDriveUrl;
-                        globalExamDurationMinutes = examDurationMinutes; // Use the value from Firebase
-                        globalNumQuestions = numQuestions;
-                        // Gunakan timestamp waktu mulai ujian siswa yang sebenarnya dari hasil transaksi
-                        // Pastikan untuk mengonversi ke Number secara eksplisit dan tambahkan log debug
-                        console.log("DEBUG: examAccessDataAfterTransaction snapshot val:", examAccessDataAfterTransaction.snapshot.val());
-                        console.log("DEBUG: raw examAccessDataAfterTransaction.snapshot.val().examStartTime type:", typeof examAccessDataAfterTransaction.snapshot.val().examStartTime);
-                        console.log("DEBUG: raw examAccessDataAfterTransaction.snapshot.val().examStartTime value:", examAccessDataAfterTransaction.snapshot.val().examStartTime);
-
-                        globalExamStartTime = Number(examAccessDataAfterTransaction.snapshot.val().examStartTime); // Konversi eksplisit ke number
+                    if (accessStatusSnapshot.exists() && accessStatusSnapshot.val().isLoggedIn === true) {
+                        // Student is already logged in (resuming session)
+                        const accessData = accessStatusSnapshot.val();
+                        console.log("Akun Anda sudah login diperangkat ini. Melanjutkan ujian...");
                         
-                        // Tambahkan pengaman di sini:
-                        if (isNaN(globalExamStartTime) || globalExamStartTime <= 0) { // Periksa untuk NaN dan nilai non-positif
-                            console.error("Critical Error: globalExamStartTime tidak valid setelah transaksi. Menggunakan Date.now() sebagai fallback. Original value:", examAccessDataAfterTransaction.snapshot.val().examStartTime);
-                            globalExamStartTime = Date.now(); // Fallback ke waktu saat ini jika ada yang salah
-                        }
-                        console.log("DEBUG: final globalExamStartTime value:", globalExamStartTime);
-
-
-                        // Now, use initialAccessCount to decide whether to show modal or directly start exam
-                        if (initialAccessCount >= 1) { // Jika sudah login setidaknya sekali sebelum transaksi ini
-                            message.innerHTML = `Melanjutkan ujian... <span class="spinner"></span>`;
-                            // Mulai ujian secara langsung dengan jawaban yang dimuat, lewati modal konfirmasi
-                            startExamProcess(globalExamUrl, globalExamDurationMinutes, globalNumQuestions, globalExamStartTime, loadedAnswers);
-                            message.textContent = "";
-                            loginBtn.disabled = false;
-                            loginBtn.style.opacity = 1;
-
-                        } else { // Login pertama (initialAccessCount adalah 0)
-                            document.getElementById("modalIdSiswa").textContent = selectedStudentData.id || "-";
-                            document.getElementById("modalNamaLengkap").textContent = selectedStudentData.name || "-";
-                            document.getElementById("modalKelas").textContent = selectedClass || "-"; // Gunakan selectedClass
-                            document.getElementById("modalMapel").textContent = foundToken.subject || "-";
-                            modalExamDuration.textContent = `${examDurationMinutes} Menit`; // Tampilkan durasi baru
-
-                            confirmCheckbox.checked = false;
-                            modalMessage.style.display = 'none';
-                            modalMessage.textContent = '';
-
-                            confirmModal.classList.add('show');
-                            isAnyModalOpen = true;
-                            message.textContent = "";
-
-                            // handleLanjutClick sekarang hanya perlu menangani modal dan memanggil showOverlay
-                            document.getElementById("btnLanjut").onclick = () => handleLanjutClick(fullInputToken, examDurationMinutes, numQuestions, loadedAnswers);
+                        // Load answers from Firebase for existing session
+                        const studentAnswersPath = child(studentAnswersRef, `${foundTokenGlobal.key}/${selectedStudentData.id}`);
+                        const answersSnapshot = await get(studentAnswersPath);
+                        if (answersSnapshot.exists()) {
+                            const savedAnswersData = answersSnapshot.val();
+                            loadedAnswers = savedAnswersData.answers ? savedAnswersData.answers.split(',') : Array(numQuestions).fill('');
+                            console.log("Jawaban siswa dimuat dari Firebase (sesi aktif):", loadedAnswers);
+                        } else {
+                            console.warn("Tidak ada jawaban tersimpan di Firebase di jalur ini untuk sesi aktif, memulai dengan array kosong.");
                         }
 
-                    } catch (err) {
-                        console.error("Error in cekToken (during exam access transaction):", err);
-                        message.style.color = "red";
-                        message.textContent = "Terjadi kesalahan saat memverifikasi token. Silakan coba lagi atau hubungi administrator.";
-                        if (tokenInputGroup) tokenInputGroup.classList.add('is-invalid');
-                        updateLoginButtonStatus();
+                        // Use existing examStartTime from Firebase
+                        let existingExamStartTime = Number(accessData.examStartTime);
+                        if (isNaN(existingExamStartTime) || existingExamStartTime <= 0) {
+                            console.error("Critical Error: examStartTime tidak valid dari Firebase untuk sesi aktif. Menggunakan Date.now() sebagai fallback.");
+                            existingExamStartTime = Date.now();
+                        }
+                        
+                        message.textContent = ""; // Clear "Memproses data..."
+                        startExamProcess(foundToken.googleDriveUrl, examDurationMinutes, numQuestions, existingExamStartTime, loadedAnswers);
+                        loginBtn.disabled = false; // Re-enable for next login
+                        loginBtn.style.opacity = 1;
+                    } else {
+                        // First login for this student and token, or previous session ended cleanly
+                        // Load answers from Firebase (might be empty if truly first time)
+                        message.innerHTML = `Memuat jawaban siswa... <span class="spinner"></span>`;
+                        const studentAnswersPath = child(studentAnswersRef, `${foundTokenGlobal.key}/${selectedStudentData.id}`);
+                        const answersSnapshot = await get(studentAnswersPath);
+                        if (answersSnapshot.exists()) {
+                            const savedAnswersData = answersSnapshot.val();
+                            loadedAnswers = savedAnswersData.answers ? savedAnswersData.answers.split(',') : Array(numQuestions).fill('');
+                            console.log("Jawaban siswa dimuat dari Firebase (login pertama):", loadedAnswers);
+                        } else {
+                            console.warn("Tidak ada jawaban tersimpan di Firebase di jalur ini, memulai dengan array kosong.");
+                        }
+
+                        document.getElementById("modalIdSiswa").textContent = selectedStudentData.id || "-";
+                        document.getElementById("modalNamaLengkap").textContent = selectedStudentData.name || "-";
+                        document.getElementById("modalKelas").textContent = selectedClass || "-";
+                        document.getElementById("modalMapel").textContent = foundToken.subject || "-";
+                        modalExamDuration.textContent = `${examDurationMinutes} Menit`;
+
+                        confirmCheckbox.checked = false;
+                        modalMessage.style.display = 'none';
+                        modalMessage.textContent = '';
+
+                        confirmModal.classList.add('show');
+                        isAnyModalOpen = true;
+                        message.textContent = "";
+
+                        // Set up the "Lanjutkan" button to handle the transaction and start exam
+                        document.getElementById("btnLanjut").onclick = () => handleLanjutClick(fullInputToken, examDurationMinutes, numQuestions, loadedAnswers);
                     }
 
                 } catch (err) {
@@ -3232,18 +3449,15 @@
                     const studentFirebaseKey = selectedStudentData?.key; // Get student's Firebase key
 
                     if (tokenFirebaseKey && studentId && studentFirebaseKey) {
-                        const accessStatusRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+                        // 1. Delete the student entry from exam_access_status
+                        const accessStatusStudentRef = child(examAccessStatusRef, `${tokenFirebaseKey}/${studentId}`);
+                        await remove(accessStatusStudentRef);
+                        console.log(`Student ${studentId} entry removed from exam_access_status for token ${tokenFirebaseKey} on return to login.`);
+
+                        // 2. Set isLoggedIn to false in students node
                         const studentIsLoggedInRef = child(studentsRef, `${studentFirebaseKey}/isLoggedIn`);
-                        try {
-                            await update(accessStatusRef, { isLoggedIn: false });
-                            console.log("isLoggedIn set to false in exam_access_status on return to login.");
-
-                            await set(studentIsLoggedInRef, false); // Set to false in students node
-                            console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on return to login.`);
-
-                        } catch (error) {
-                            console.error("Failed to set isLoggedIn to false:", error);
-                        }
+                        await set(studentIsLoggedInRef, false); // Set to false
+                        console.log(`Student ${selectedStudentData.id} isLoggedIn status in students node set to false on return to login.`);
                     }
 
                     // Reset Class Dropdown
@@ -3332,6 +3546,7 @@
             examIframe.addEventListener('wheel', (event) => {
                 if (event.ctrlKey) {
                     event.preventDefault(); // Mencegah zoom halaman default
+                    resetAutoHideTimer(); // Reset timer on interaction
                     
                     if (event.deltaY < 0) {
                         // Zoom in
@@ -3344,10 +3559,210 @@
                     // Batasi level zoom
                     currentZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, currentZoom));
 
-                    // Terapkan zoom
-                    examIframe.style.transform = `scale(${currentZoom})`;
+                    if (currentZoom <= MIN_ZOOM) { // If zoomed out to or below original size
+                        currentZoom = MIN_ZOOM; // Ensure it's exactly 1.0
+                        currentTranslateX = 0; // Reset pan
+                        currentTranslateY = 0; // Reset pan
+                    }
+                    applyIframeTransform(); // Apply the new scale and reset pan
+                    updateZoomButtonStates(); // Update button states
                 }
             }, { passive: false }); // Gunakan passive: false untuk mengizinkan preventDefault
+
+            // NEW: Zoom button event listeners
+            zoomInBtn.addEventListener('click', () => {
+                resetAutoHideTimer(); // Reset timer on interaction
+                currentZoom += ZOOM_STEP;
+                currentZoom = Math.min(MAX_ZOOM, currentZoom);
+                currentTranslateX = 0; // Reset panning on zoom change
+                currentTranslateY = 0; // Reset panning on zoom change
+                applyIframeTransform();
+                updateZoomButtonStates();
+            });
+
+            zoomOutBtn.addEventListener('click', () => {
+                resetAutoHideTimer(); // Reset timer on interaction
+                currentZoom -= ZOOM_STEP;
+                currentZoom = Math.max(MIN_ZOOM, currentZoom);
+                if (currentZoom <= MIN_ZOOM) { // If zoomed out to or below original size
+                    currentZoom = MIN_ZOOM; // Ensure it's exactly 1.0
+                    currentTranslateX = 0; // Reset pan
+                    currentTranslateY = 0; // Reset pan
+                }
+                applyIframeTransform(); // Apply the new scale and reset pan
+                updateZoomButtonStates();
+            });
+
+            // NEW: Pan Left/Right button event listeners
+            panLeftBtn.addEventListener('click', () => {
+                resetAutoHideTimer(); // Reset timer on interaction
+                if (currentZoom > MIN_ZOOM) {
+                    let newTranslateX = currentTranslateX + PAN_STEP;
+                    // Calculate max positive translation (how far right we can pan)
+                    // This is 0 because origin is top-left, so positive X moves it right.
+                    const maxPositiveX = 0;
+                    newTranslateX = Math.min(maxPositiveX, newTranslateX); // Clamp to 0
+                    currentTranslateX = newTranslateX;
+                    applyIframeTransform();
+                }
+            });
+
+            panRightBtn.addEventListener('click', () => {
+                resetAutoHideTimer(); // Reset timer on interaction
+                if (currentZoom > MIN_ZOOM) {
+                    let newTranslateX = currentTranslateX - PAN_STEP;
+                    // Calculate max negative translation (how far left we can pan)
+                    const unscaledIframeWidth = examIframe.offsetWidth;
+                    const scaledIframeWidth = unscaledIframeWidth * currentZoom;
+                    const containerWidth = examContentWrapper.offsetWidth;
+                    const maxNegativeX = -(Math.max(0, scaledIframeWidth - containerWidth));
+                    newTranslateX = Math.max(maxNegativeX, newTranslateX); // Clamp to maxNegativeX
+                    currentTranslateX = newTranslateX;
+                    applyIframeTransform();
+                }
+            });
+
+            // NEW: Refresh iframe button event listener
+            refreshIframeBtn.addEventListener('click', () => {
+                resetAutoHideTimer(); // Reset timer on interaction
+                // Re-set the iframe src to force a reload without affecting session
+                const currentIframeSrc = examIframe.src;
+                console.log("Refresh button clicked. Current iframe src:", examIframe.src);
+                console.log("Stored globalExamUrl:", globalExamUrl);
+                examIframe.src = ''; // Clear src first to ensure a full reload
+                setTimeout(() => {
+                    examIframe.src = currentIframeSrc;
+                    console.log("Iframe refreshed by re-setting src.");
+                }, 50); // Small delay to ensure browser registers src change
+            });
+
+            // Iframe Panning Event Listeners (Mouse)
+            examIframe.addEventListener('mousedown', (e) => {
+                e.stopPropagation(); // Stop propagation to prevent interference
+                resetAutoHideTimer(); // Reset timer on interaction
+                if (currentZoom > MIN_ZOOM) { // Only allow dragging if zoomed in beyond original size
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    const translate = getTranslateValues(examIframe);
+                    currentTranslateX = translate.x;
+                    currentTranslateY = translate.y;
+                    examIframe.classList.add('dragging'); // Add dragging class for cursor and pointer-events: none
+                    console.log(`Pan Start (Mouse): Initial translateX=${currentTranslateX}, translateY=${currentTranslateY}`);
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault(); // Prevent text selection while dragging
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                let newTranslateX = currentTranslateX + dx;
+                let newTranslateY = currentTranslateY + dy;
+
+                // Calculate boundaries based on scaled iframe size and container size
+                const unscaledIframeWidth = examIframe.offsetWidth;
+                const unscaledIframeHeight = examIframe.offsetHeight;
+
+                const scaledIframeWidth = unscaledIframeWidth * currentZoom;
+                const scaledIframeHeight = unscaledIframeHeight * currentZoom;
+
+                const containerWidth = examContentWrapper.offsetWidth;
+                const containerHeight = examContentWrapper.offsetHeight;
+
+                // Max negative translation (how far left/up we can drag)
+                const maxNegativeX = -(Math.max(0, scaledIframeWidth - containerWidth));
+                const maxNegativeY = -(Math.max(0, scaledIframeHeight - containerHeight));
+
+                // Clamp translation values: between maxNegative and 0 (top-left origin)
+                newTranslateX = Math.max(maxNegativeX, Math.min(0, newTranslateX));
+                newTranslateY = Math.max(maxNegativeY, Math.min(0, newTranslateY));
+
+                examIframe.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${currentZoom})`;
+                // console.log(`Dragging (Mouse): dx=${dx}, dy=${dy}, newX=${newTranslateX}, newY=${newTranslateY}, maxX=${maxNegativeX}, maxY=${maxNegativeY}`);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    const translate = getTranslateValues(examIframe);
+                    currentTranslateX = translate.x; // Store the final position
+                    currentTranslateY = translate.y;
+                    examIframe.classList.remove('dragging'); // Remove dragging class
+                    console.log(`Pan End (Mouse): Final translateX=${currentTranslateX}, translateY=${currentTranslateY}`);
+                }
+            });
+
+            // Iframe Panning Event Listeners (Touch)
+            examIframe.addEventListener('touchstart', (e) => {
+                e.stopPropagation(); // Stop propagation to prevent interference
+                resetAutoHideTimer(); // Reset timer on interaction
+                if (currentZoom > MIN_ZOOM && e.touches.length === 1) { // Only allow dragging if zoomed in and single touch
+                    isDragging = true;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    const translate = getTranslateValues(examIframe);
+                    currentTranslateX = translate.x;
+                    currentTranslateY = translate.y;
+                    examIframe.classList.add('dragging'); // Add dragging class for pointer-events: none
+                    console.log(`Pan Start (Touch): Initial translateX=${currentTranslateX}, translateY=${currentTranslateY}`);
+                }
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging || e.touches.length !== 1) return;
+                e.preventDefault(); // Prevent scrolling the page
+
+                const dx = e.touches[0].clientX - startX;
+                const dy = e.touches[0].clientY - startY;
+
+                let newTranslateX = currentTranslateX + dx;
+                let newTranslateY = currentTranslateY + dy;
+
+                const unscaledIframeWidth = examIframe.offsetWidth;
+                const unscaledIframeHeight = examIframe.offsetHeight;
+
+                const scaledIframeWidth = unscaledIframeWidth * currentZoom;
+                const scaledIframeHeight = unscaledIframeHeight * currentZoom;
+
+                const containerWidth = examContentWrapper.offsetWidth;
+                const containerHeight = examContentWrapper.offsetHeight;
+
+                const maxNegativeX = -(Math.max(0, scaledIframeWidth - containerWidth));
+                const maxNegativeY = -(Math.max(0, scaledIframeHeight - containerHeight));
+
+                newTranslateX = Math.max(maxNegativeX, Math.min(0, newTranslateX));
+                newTranslateY = Math.max(maxNegativeY, Math.min(0, newTranslateY));
+
+                examIframe.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${currentZoom})`;
+                // console.log(`Dragging (Touch): dx=${dx}, dy=${dy}, newX=${newTranslateX}, newY=${newTranslateY}, maxX=${maxNegativeX}, maxY=${maxNegativeY}`);
+            });
+
+            document.addEventListener('touchend', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    const translate = getTranslateValues(examIframe);
+                    currentTranslateX = translate.x;
+                    currentTranslateY = translate.y;
+                    examIframe.classList.remove('dragging');
+                    console.log(`Pan End (Touch): Final translateX=${currentTranslateX}, translateY=${currentTranslateY}`);
+                }
+            });
+
+            // Event listeners for auto-hide timer management
+            zoomControls.addEventListener('mousemove', resetAutoHideTimer);
+            zoomControls.addEventListener('touchstart', resetAutoHideTimer);
+            zoomControls.addEventListener('click', resetAutoHideTimer); // Reset timer on any click within controls
+
+            // Initial call to set zoom and button states
+            applyIframeTransform(); // Apply initial zoom and pan (which should be 0,0)
+            updateZoomButtonStates();
+            resetAutoHideTimer(); // Start auto-hide timer initially
+
+            // Toggle controls button listener
+            toggleControlsBtn.addEventListener('click', toggleControlsPanel);
 
 
             updateDateTime();
